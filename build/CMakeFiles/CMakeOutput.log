@@ -427,3 +427,51 @@ Parsed CXX implicit link information from above output:
   implicit fwks: []
 
 
+Determining if the function XOpenDisplay exists in the /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_6e3e1 && [1/2] Building C object CMakeFiles/cmTC_6e3e1.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_6e3e1
+
+
+
+Determining if the function gethostbyname exists passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_b0735 && [1/2] Building C object CMakeFiles/cmTC_b0735.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_b0735
+
+
+
+Determining if the function connect exists passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_90a7c && [1/2] Building C object CMakeFiles/cmTC_90a7c.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_90a7c
+
+
+
+Determining if the function remove exists passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_89232 && [1/2] Building C object CMakeFiles/cmTC_89232.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_89232
+
+
+
+Determining if the function shmat exists passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_a4d5e && [1/2] Building C object CMakeFiles/cmTC_a4d5e.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_a4d5e
+
+
+
+Determining if the function IceConnectionNumber exists in the ICE passed with the following output:
+Change Dir: /home/danny/Documents/Prog/String_Wind_Subtractive/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_ccf6f && [1/2] Building C object CMakeFiles/cmTC_ccf6f.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_ccf6f
+
+
+

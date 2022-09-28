@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/danny/Documents/Prog/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++ -g -o CMakeFiles/Stringwind_Subtractive.dir/main.cpp.o -c /home/danny/Documents/Prog/String_Wind_Subtractive/main.cpp",
-  "file": "/home/danny/Documents/Prog/String_Wind_Subtractive/main.cpp"
+  "command": "/usr/bin/g++ -I/home/danny/Documents/Prog/String_Wind_Subtractive/src -I/home/danny/Documents/Prog/String_Wind_Subtractive/src/lib/image -Wall -Wextra -g -o CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o -c /home/danny/Documents/Prog/String_Wind_Subtractive/src/main.cpp",
+  "file": "/home/danny/Documents/Prog/String_Wind_Subtractive/src/main.cpp"
 }
 ]

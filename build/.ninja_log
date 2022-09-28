@@ -1,3 +1,12 @@
 # ninja log v5
+1	3135	1664340815442733499	CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o	3bb0016e2a62d6ed
+3135	3234	1664340815546729103	Stringwind_Subtractive	fd34b79d38945138
 0	218	1664325146020752996	CMakeFiles/Stringwind_Subtractive.dir/main.cpp.o	fbcffadfc5afceea
-219	329	1664325146128729673	Stringwind_Subtractive	f296a507182a7509
+1	3275	1664340956745223039	CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o	976900f0b3df686e
+3275	3378	1664340956849219293	Stringwind_Subtractive	778b324f292b9300
+0	3220	1664341109712123866	CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o	976900f0b3df686e
+3220	3320	1664341109816120650	Stringwind_Subtractive	778b324f292b9300
+1	3243	1664341332853843174	CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o	976900f0b3df686e
+3243	3346	1664341332961840392	Stringwind_Subtractive	778b324f292b9300
+1	3285	1664341467486529717	CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o	976900f0b3df686e
+3285	3385	1664341467586527360	Stringwind_Subtractive	778b324f292b9300
