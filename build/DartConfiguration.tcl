@@ -4,14 +4,14 @@
 
 
 # Configuration directories and files
-SourceDirectory: /home/danny/Documents/Prog/String_Wind_Subtractive
-BuildDirectory: /home/danny/Documents/Prog/String_Wind_Subtractive/build
+SourceDirectory: /home/danny/Programming/String_Wind_Subtractive
+BuildDirectory: /home/danny/Programming/String_Wind_Subtractive/build
 
 # Where to place the cost data store
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: Dannys-Thinkpad
+Site: danny-thinkpad
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
 BuildName: Linux-g++
@@ -26,8 +26,8 @@ SubmitURL: http://
 NightlyStartTime: 00:00:00 EDT
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "/usr/bin/cmake" "/home/danny/Documents/Prog/String_Wind_Subtractive"
-MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}"
+ConfigureCommand: "/usr/bin/cmake" "/home/danny/Programming/String_Wind_Subtractive"
+MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}" -- -i
 DefaultCTestConfigurationType: Release
 
 # version control
@@ -75,7 +75,7 @@ CudaSanitizerCommand:
 CudaSanitizerCommandOptions: 
 MemoryCheckType: 
 MemoryCheckSanitizerOptions: 
-MemoryCheckCommand: /usr/bin/valgrind
+MemoryCheckCommand: MEMORYCHECK_COMMAND-NOTFOUND
 MemoryCheckCommandOptions: 
 MemoryCheckSuppressionFile: 
 

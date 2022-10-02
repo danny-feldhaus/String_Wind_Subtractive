@@ -1,1 +1,4 @@
-build/CPackSourceConfig.cmake
+build/
+*.csv
+*.png
+!vg.png

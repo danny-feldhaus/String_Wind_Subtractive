@@ -1,4 +1,0 @@
-1) Image library 
-2) Color math
-3) Line iterator (with thickness)
-4

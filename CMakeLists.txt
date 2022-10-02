@@ -13,6 +13,7 @@ find_package(X11 REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${CMAKE_SOURCE_DIR}/src/lib/image)
+include_directories(${CMAKE_SOURCE_DIR}/src/lib/CImg)
 include_directories(${PNG_INCLUDE_DIR})
 include_directories(${X11_INCLUDE_DIR})
 
