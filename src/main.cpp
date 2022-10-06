@@ -19,10 +19,9 @@ using std::ofstream;
 using std::ifstream;
 #define SIZE 4096
 #define PIN_COUNT 250
-#define STEPS 4000
+#define STEPS 8000
 #define MIN_SEPARATION 10
-#define THICKNESS 2
-#define MULTIPLIER 0
+#define MULTIPLIER 0.75
 #define CULL_THRESH (short)100
 #define SCORE_RANGE 10000
 typedef short IMG_TYPE;
@@ -44,7 +43,7 @@ int main(int, char**)
         std::cout << "Generating line information...\n";
 
     vector<pair<short,short>> pins = circular_pins(SIZE/2,SIZE/2, SIZE/2-10, PIN_COUNT);
-    line_map<IMG_TYPE> lines(img, pins,THICKNESS,MIN_SEPARATION);
+    line_map<IMG_TYPE> lines(img, pins,MIN_SEPARATION);
 
     ofstream instruction_file("/home/danny/Documents/Prog/String_Wind_Subtractive/instruction_file_400_cull.csv");
 
@@ -71,7 +70,7 @@ int main(int, char**)
 
         lines.update_scores(cur_pin, next_pin, MULTIPLIER);
 
-        image_editing::mult_points(img, lines.line_between(cur_pin, next_pin), MULTIPLIER);
+        //image_editing::mult_points(img, lines.line_between(cur_pin, next_pin), MULTIPLIER);
         
 
         //image_analysis::add_to_updates(min_pin, max_pin, line_scores, to_update);
@@ -81,7 +80,7 @@ int main(int, char**)
 
             std::cout << "\tDrawing String...\n";
 
-        image_editing::draw_points<IMG_TYPE>(str_img, lines.line_between(cur_pin, next_pin), 0);
+        image_editing::draw_line<IMG_TYPE>(str_img, pins[cur_pin].first, pins[cur_pin].second, pins[next_pin].first, pins[next_pin].second, 0);
         if((i+1)%100 == 0)
         {
             img.get_normalize(0,255).save("/home/danny/Programming/String_Wind_Subtractive/images/data.png");

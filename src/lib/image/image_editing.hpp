@@ -52,6 +52,13 @@ namespace image_editing
         }
     }
 
+    template<typename T> 
+    void draw_line(CImg<T>& img, int ax, int ay, int bx, int by, T color = 255)
+    {
+        img.draw_line(ax,ay,bx,by,&color);
+        return;
+    }
+
     /*
     template<typename T>
     void draw_all_lines(CImg<T>& img, linemap& line_map)

@@ -5,7 +5,6 @@
 #include <map>
 #include <vector>
 #include <math.h>
-#define PAIR_CONTAINS(p, val) p.first == val || p.second == val
 
 using std::make_pair;
 using std::map;
@@ -15,6 +14,7 @@ using std::pair;
 using std::vector;
 typedef pair<short, short> coord;
 
+/*
 template <typename IMG_TYPE>
 class line_iterator
 {
@@ -54,7 +54,7 @@ public:
                                                                                                                              min_dim(y_major ? image.width() : image.height())
     {
         float angle = atan2(d_min, d_maj);
-        thickness = max(_thickness / abs(sin(M_PI / 2 - angle)), 1.0);
+        thickness = max(_thickness / abs(sin((M_PI / 2) - angle)), 1.0);
         radius = thickness / 2;
         min_ax = max(min_start - radius, 0);
         maj_ax = maj_start;
@@ -92,6 +92,61 @@ public:
         }
         return true;
     }
+};*/
+template <typename IMG_TYPE>
+class line_iterator
+{
+    public:
+    int line_length;
+
+    line_iterator(cimg_library::CImg<IMG_TYPE> &_image, int _start_x, int _start_y, int _end_x, int _end_y, bool _interpolate = false) : image(_image)
+    {
+        interpolate = _interpolate;
+        coord start = (_start_x < _end_x) ? make_pair<short,short>(_start_x, _start_y) : make_pair<short,short>(_end_x, _end_y);
+        coord end = (_start_x < _end_x) ? make_pair<short,short>(_end_x, _end_y) : make_pair<short,short>(_start_x, _start_y);
+        interpolate = _interpolate;
+        line_length = sqrt(pow(_end_x - _start_x,2) + pow(_end_y - _start_y,2));
+        float angle = atan2(end.second - start.second, end.first - start.first);
+        x_step = cos(angle);
+        y_step = sin(angle);
+        cur_x = start.first;
+        cur_y = start.second;
+    }
+    bool step()
+    {
+        if(cur_length++ > line_length) return false;
+        cur_x += x_step;
+        cur_y += y_step;
+        return true;
+    }
+    IMG_TYPE get()
+    {
+        if(interpolate) return image.linear_atXY(cur_x,cur_y);
+        return image(cur_x,cur_y);
+    }
+    IMG_TYPE set(IMG_TYPE val)
+    {
+        if(interpolate) 
+        {
+            image.set_linear_atXY(val,cur_x,cur_y);
+        }
+        else
+        {
+            image(cur_x,cur_y) = val;
+        }
+        return val;
+    }
+    int idx()
+    {
+        return cur_x + cur_y * image.width();
+    }
+
+    private:
+    cimg_library::CImg<IMG_TYPE> &image;
+    bool interpolate;
+    float cur_x, cur_y;
+    float x_step, y_step;
+    int cur_length = 0;
 };
 
 class set_intersection_iterator
@@ -168,7 +223,6 @@ class line_intersection_iterator
     coord a_diff, b_diff;
     float a_mag, b_mag;
     float angle;
-    float overlap_width;
     float cur_x, cur_y;
     int steps_taken = 0;
 
@@ -177,10 +231,11 @@ class line_intersection_iterator
     bool get_intersection()
     {
         float a1 = a_end.second - a_start.second;
-        float b1 = a_end.first - a_start.first;
+        float b1 = a_start.first - a_end.first;
         float c1 = a1*a_start.first + b1*a_start.second;
-        float a2 = b_end.second - a_start.second;
-        float b2 = b_end.first - b_start.first;
+
+        float a2 = b_end.second - b_start.second;
+        float b2 = b_start.first - b_end.first;
         float c2 = a2*b_start.first + b2*b_start.second;
         
         float det = a1 * b2 - a2 * b1;
@@ -216,6 +271,8 @@ class line_intersection_iterator
     }
 
     public:
+    float overlap_width;
+
     line_intersection_iterator(coord line_a_start, coord line_a_end, coord line_b_start, coord line_b_end)
     {
         //Swap based on the x values, so that intersections are calculated the same regardless of what order the lines are given.
@@ -284,6 +341,11 @@ static vector<coord> circular_pins(short center_x, short center_y, short radius,
     return pins;
 }
 
+static float magnitude(coord a, coord b)
+{
+    return sqrt(pow(b.first-a.first,2) + pow(b.second-a.second,2));
+}
+
 template <typename IMG_TYPE>
 class line_map
 {
@@ -295,9 +357,9 @@ public:
     cimg &image;
     int pin_count;
     int line_count;
-    line_map(cimg &_image, vector<coord> &pins, int thickness = 1, int min_separation = 1) : image(_image), pin_count(pins.size())
+    line_map(cimg &_image, vector<coord> &_pins, int min_separation = 1) : image(_image), pin_count(_pins.size()), pins(_pins)
     {
-        make_map(pins, thickness, min_separation);
+        make_map( min_separation);
         score_all_lines();
         return;
     }
@@ -339,9 +401,9 @@ public:
     // Score every line based on its average pixel value
     void score_all_lines()
     {
-        for (int i = 0; i < line_count; i++)
+        for(pair<short,short> line : line_pairs)
         {
-            line_scores[i] = calculate_score(i);
+            *scores_by_pin[line.first][line.second] = calculate_score(line.first,line.second);
         }
         return;
     }
@@ -349,42 +411,38 @@ public:
     void update_scores(short pin_a, short pin_b, float multiplier)
     {
         vector<pair<short, short>> lines_to_update = overlapping_lines(pin_a, pin_b);
-        vector<int> *line_a = lines_by_pin[pin_a][pin_b];
+        coord &a_coord = pins[pin_a];
+        coord &b_coord = pins[pin_b];
+        
         vector<int> *line_b = nullptr;
-        int idx;
+        coord cur_coord;
+        //int idx;
         long new_score;
         //Update the score for each overlapping line
-        int update_count = 0;
+        float update_count = 0;
+        int match_total=  0;
         for (pair<short, short> p : lines_to_update)
         {
+            line_intersection_iterator lii(a_coord, b_coord, pins[p.first], pins[p.second]);
             line_b = lines_by_pin[p.first][p.second];
-            set_intersection_iterator sii(*line_a, *line_b, image.width());
+            //set_intersection_iterator sii(*line_a, *line_b, image.width());
             new_score = ((long)*scores_by_pin[p.first][p.second]) * line_b -> size();
-
             int match_count = 0;
-            while (sii.get_next_match(idx))
+            do
             {
-                new_score += image[idx] * multiplier - image[idx];
+                cur_coord = lii.cur_coord();
+                new_score += image(cur_coord.first,cur_coord.second) * multiplier - image(cur_coord.first,cur_coord.second);
                 match_count++;
             }
-            if(match_count > 0)
-            {
-                update_count++;
-                //std::cout << "\t\t\t" << "Updated " << match_count << " pixels for " << p.first << ',' << p.second << '\n';
-            }
-            new_score = (new_score > 0) ? new_score / line_b -> size() : 0;
+            while (lii.step());
+            update_count += (match_count > 0);
+            match_total += match_count;
+            new_score = (new_score > 0) ? new_score / magnitude(pins[p.first],pins[p.second]) : 0;
             *scores_by_pin[p.first][p.second] = (IMG_TYPE)new_score;
         }
         std::cout << "\t\t" << update_count << " overlaps updated out of " << lines_to_update.size() << " possible.\n";
-        //Update the score for pin_a->pin_b
-        new_score = 0;
-        for(int idx : *line_a)
-        {
-            new_score += image[idx] * multiplier;
-        }
-        new_score = (new_score > 0) ? new_score / line_a -> size() : 0;
-        *scores_by_pin[pin_a][pin_b] = (IMG_TYPE)new_score;
-        
+        std::cout << "\t\t Average overlap count: " << match_total / update_count << '\n';
+        *scores_by_pin[pin_a][pin_b] = darken_line(pin_a,pin_b, multiplier);
     }
 
     bool cull_line(int pin_a, int pin_b)
@@ -403,9 +461,12 @@ public:
 private:
     vector<vector<int> *> line_indices;
     vector<IMG_TYPE> line_scores;
+    vector<pair<short,short>> line_pairs;
+    vector<coord>& pins;
+    
     lbp lines_by_pin;
     sbp scores_by_pin;
-    void make_map(vector<coord> &pins, int thickness, int min_separation)
+    void make_map(int min_separation)
     {
         int b_start = 0, b_end = 0;
         int p = pins.size();
@@ -420,7 +481,7 @@ private:
             b_end = min(pin_count, (pin_count + a - min_separation)+1);
             for (short b = b_start; b < b_end; b++)
             {
-                line_iterator<IMG_TYPE> li(image, pins[a].first, pins[a].second, pins[b].first, pins[b].second, thickness);
+                line_iterator<IMG_TYPE> li(image, pins[a].first, pins[a].second, pins[b].first, pins[b].second, true);
                 line_indices[i] = new vector<int>();
 
                 while (li.step())
@@ -433,7 +494,7 @@ private:
                 lines_by_pin[b][a] = lines_by_pin[a][b];
                 scores_by_pin[a][b] = &(line_scores[i]);
                 scores_by_pin[b][a] = scores_by_pin[a][b];
-
+                line_pairs.push_back(make_pair<short,short>((short)a,(short)b));
                 i++;
             }
         }
@@ -464,20 +525,24 @@ private:
 
     IMG_TYPE calculate_score(short pin_a, short pin_b)
     {
-        return calculate_score(*lines_by_pin[pin_a][pin_b]);
-    }
-    IMG_TYPE calculate_score(int line_index)
-    {
-        return calculate_score(*line_indices[line_index]);
-    }
-    IMG_TYPE calculate_score(vector<int>& indices)
-    {
+        line_iterator<IMG_TYPE> li(image, pins[pin_a].first, pins[pin_a].second, pins[pin_b].first, pins[pin_b].second, false);
         long sum = 0;
-        for (int idx : indices)
+        do
         {
-            sum += image[idx];
-        }
-        return (IMG_TYPE)(sum / indices.size());
+            sum += li.get();
+        } while (li.step());
+        return (IMG_TYPE)(sum / li.line_length);
+    }
+
+    IMG_TYPE darken_line(short pin_a, short pin_b, float multiplier)
+    {
+        line_iterator<IMG_TYPE> li(image, pins[pin_a].first, pins[pin_a].second, pins[pin_b].first, pins[pin_b].second, false);
+        long sum = 0;
+        do
+        {
+            sum += li.set(li.get() * multiplier);
+        } while (li.step());
+        return (IMG_TYPE)(sum / li.line_length);
     }
 };
 #endif
