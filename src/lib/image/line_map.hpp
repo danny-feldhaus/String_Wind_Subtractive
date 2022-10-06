@@ -215,9 +215,6 @@ class line_intersection_iterator
         cur_y = center.second - std::sin(angle) * overlap_width/2;
     }
 
-
-
-    
     public:
     line_intersection_iterator(coord line_a_start, coord line_a_end, coord line_b_start, coord line_b_end)
     {
