@@ -22,53 +22,7 @@ typedef map<int,   map<int, short>> linescore;
 typedef map<pair<short, short>, vector<int>> line_map;
 namespace image_analysis
 {
-    class set_intersection_iterator
-    {
-        public:
-        set_intersection_iterator(vector<int>& _set_a, vector<int>& _set_b, int _max_separation = 1, int max_step_power = 9) : set_a(_set_a), set_b(_set_b)
-        {
-            max_separation = _max_separation;
-            max_step_size = pow(2, max_step_power);
-            itr_a = set_a.begin();
-            itr_b = set_b.begin();
-        }
-        bool get_next_match(int& match)
-        {
-            int step_size = max_step_size;
-            int min_val_diff;
-            while(step_size)
-            {
-                min_val_diff = max_separation * step_size;
-                while(*itr_b - *itr_a > min_val_diff && set_a.end() - itr_a > step_size)
-                {
-                    itr_a += step_size;
-                }
-                while(*itr_a - *itr_b > min_val_diff && set_b.end() - itr_b > step_size)
-                {
-                    itr_b += step_size;
-                }
-                step_size /= 2;
-            }
-            while(*itr_a != *itr_b && itr_a != set_a.end() && itr_b != set_b.end())
-            {
-                while(*itr_a < *itr_b && itr_a != set_a.end()) itr_a++;
-                while(*itr_b < *itr_a && itr_b != set_b.end()) itr_b++;
-            }
-            if(itr_a == set_a.end() || itr_b == set_b.end()) return false;
-            match = *itr_a;
-            itr_a++;
-            itr_b++;
-            return true;
-        }
-        private:
-        vector<int> & set_a;
-        vector<int> & set_b;
-        vector<int>::iterator itr_a;
-        vector<int>::iterator itr_b;
-        int max_separation;
-        int max_step_size;
-    };
-
+   
     struct score_update
     {
         int scored_a;

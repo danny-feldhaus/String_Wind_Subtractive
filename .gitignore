@@ -1,4 +1,5 @@
 build/
+.vscode/
 *.csv
 *.png
 !vg.png

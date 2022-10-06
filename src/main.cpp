@@ -22,8 +22,9 @@ using std::ifstream;
 #define STEPS 4000
 #define MIN_SEPARATION 10
 #define THICKNESS 2
-#define MULTIPLIER 0.5
+#define MULTIPLIER 0
 #define CULL_THRESH (short)100
+#define SCORE_RANGE 10000
 typedef short IMG_TYPE;
 int main(int, char**) 
 {
@@ -38,7 +39,7 @@ int main(int, char**)
     cimg_library::CImg<IMG_TYPE> str_img(SIZE,SIZE,1,1,255);
     image_editing::color_difference(img, cmp_img, img);
     img.resize(SIZE,SIZE,1,1);
-    img = (255 - img).normalize(0,1000);
+    img = (255 - img).normalize(0,SCORE_RANGE);
 
         std::cout << "Generating line information...\n";
 
@@ -46,8 +47,6 @@ int main(int, char**)
     line_map<IMG_TYPE> lines(img, pins,THICKNESS,MIN_SEPARATION);
 
     ofstream instruction_file("/home/danny/Documents/Prog/String_Wind_Subtractive/instruction_file_400_cull.csv");
-
-
 
     IMG_TYPE best_score = 0;
     int cur_pin = 0;
@@ -70,6 +69,11 @@ int main(int, char**)
 
             std::cout << "\tUpdating scores...\n";
 
+        lines.update_scores(cur_pin, next_pin, MULTIPLIER);
+
+        image_editing::mult_points(img, lines.line_between(cur_pin, next_pin), MULTIPLIER);
+        
+
         //image_analysis::add_to_updates(min_pin, max_pin, line_scores, to_update);
         //image_analysis::score_pin_from_updates(img, to_update[next_pin], line_map, line_scores, MULTIPLIER);
         //image_editing::mult_points(img, line_map[min_pin][max_pin], MULTIPLIER);
@@ -80,8 +84,8 @@ int main(int, char**)
         image_editing::draw_points<IMG_TYPE>(str_img, lines.line_between(cur_pin, next_pin), 0);
         if((i+1)%100 == 0)
         {
-            img.save("/home/danny/Documents/Prog/String_Wind_Subtractive/images/modified.png");
-            str_img.save("/home/danny/Documents/Prog/String_Wind_Subtractive/images/string.png");
+            img.get_normalize(0,255).save("/home/danny/Programming/String_Wind_Subtractive/images/data.png");
+            str_img.save("//home/danny/Programming/String_Wind_Subtractive/images/strings.png");
         }
         /*
         if(max_pin != line_map[min_pin].begin()->first) //Leave at least one connection for each pin, so that it doesn't end the path.
@@ -101,4 +105,4 @@ int main(int, char**)
     img.get_normalize(0,255).save("/home/danny/Documents/Prog/String_Wind_Subtractive/images/modified.png");
     str_img.save("/home/danny/Documents/Prog/String_Wind_Subtractive/images/string.png");
 
-}
+};
