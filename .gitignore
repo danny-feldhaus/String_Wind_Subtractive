@@ -4,3 +4,5 @@ build/
 *.png
 !vg.png
 src/lib/CImg
+build/Stringwind_Subtractive
+build/Testing/Temporary/*.log

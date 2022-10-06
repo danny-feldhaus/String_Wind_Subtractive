@@ -162,12 +162,19 @@ class line_intersection_iterator
     coord a_end;
     coord b_start;
     coord b_end;
+    
 
-    coord cur_pos;
+    coord center;
+    coord a_diff, b_diff;
+    float a_mag, b_mag;
+    float angle;
+    float overlap_width;
+    float cur_x, cur_y;
+    int steps_taken = 0;
 
     //Find the center intersection coordinate of the two lines
     //Source: https://www.topcoder.com/thrive/articles/Geometry%20Concepts%20part%202:%20%20Line%20Intersection%20and%20its%20Applications
-    bool intersection(coord& center)
+    bool get_intersection()
     {
         float a1 = a_end.second - a_start.second;
         float b1 = a_end.first - a_start.first;
@@ -180,19 +187,86 @@ class line_intersection_iterator
         if(det == 0) return false;
         center.first = (b2 * c1 - b1 * c2) / det;
         center.second = (a1 * c2 - a2 * c1) / det;
+        return true;
     }
 
-    
+    float get_angle()
+    {
+        coord a_diff = make_pair<short,short>(a_end.first-a_start.first, a_end.second - a_start.second);
+        coord b_diff = make_pair<short,short>(b_end.first-b_start.first, b_end.second - b_start.second);
+        float dot = (a_diff.first * b_diff.first) + (a_diff.second * b_diff.second);
+        a_mag = sqrt(a_diff.first * a_diff.first + a_diff.second * a_diff.second);
+        b_mag = sqrt(b_diff.first * b_diff.first + b_diff.second * b_diff.second);
+        float cosine = dot / (a_mag * b_mag);
+        angle = std::acos(cosine);
+        return angle;
+    }
+
+    float get_overlap_width()
+    {
+        get_angle();
+        overlap_width = 1.0f / std::sin(angle);
+        if(overlap_width > min(a_mag,b_mag)) overlap_width = min(a_mag,b_mag);
+        return overlap_width;
+    }
+    void move_to_start()
+    {
+        cur_x = center.first - std::cos(angle) * overlap_width/2;
+        cur_y = center.second - std::sin(angle) * overlap_width/2;
+    }
+
+
 
     
     public:
     line_intersection_iterator(coord line_a_start, coord line_a_end, coord line_b_start, coord line_b_end)
     {
+        //Swap based on the x values, so that intersections are calculated the same regardless of what order the lines are given.
+        coord temp;
+        if(line_a_start.first > line_a_end.first)
+        {
+            temp = line_a_start;
+            line_a_start = line_a_end;
+            line_a_end = temp;
+        }
+        if(line_b_start.first > line_b_end.first)
+        {
+            temp = line_b_start;
+            line_b_start = line_b_end;
+            line_b_end = temp;
+        }
+        if(line_a_start.first > line_b_start.first)
+        {
+            temp = line_a_start;
+            line_a_start = line_b_start;
+            line_b_start = temp;
+            temp = line_a_end;
+            line_a_end = line_b_end;
+            line_b_end = temp;
+        }
         a_start = line_a_start;
-        a_end = line_a_end;
         b_start = line_b_start;
+        a_end = line_a_end;
         b_end = line_b_end;
-        cur_pos = a_start;
+        get_intersection();
+        get_angle();
+        get_overlap_width();
+        move_to_start();
+    }
+    coord cur_coord()
+    {
+        return make_pair<short,short>((short)std::round(cur_x),(short)std::round(cur_y));
+    }
+
+    bool step()
+    {
+        if(steps_taken++ > overlap_width)
+        {
+            return false;
+        }
+        cur_x += std::cos(angle);
+        cur_y += std::sin(angle);
+        return true;
     }
 
 
@@ -368,6 +442,8 @@ private:
         }
 
     }
+    
+
     vector<pair<short, short>> overlapping_lines(short pin_a, short pin_b)
     {
         vector<pair<short, short>> lines;
@@ -387,6 +463,8 @@ private:
 
         return lines;
     }
+    
+
     IMG_TYPE calculate_score(short pin_a, short pin_b)
     {
         return calculate_score(*lines_by_pin[pin_a][pin_b]);
