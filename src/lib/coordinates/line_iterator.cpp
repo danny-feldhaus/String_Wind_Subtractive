@@ -1,14 +1,19 @@
 #include "line_iterator.hpp"
 
+//Constructor. Calculates starting values and places position at start 
+//  start / end do not correspond to _start and _end, but instead whichever has the lowest/highest x value
+
 template <class IMG_TYPE>
 line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord _start, scoord _end, bool _interpolate) 
     :  image(_image)
 {
     interpolate = _interpolate;
+    //Order start/end by x value. This is to avoid lines with swapped start/end behaving differently.
     start = (_start.x < _end.x) ? _start : _end;
     end   = (_start.x < _end.x) ? _end : _start;
     interpolate = _interpolate;
     line_length = distance(start,end);
+    //Todo: make a line.hpp function for this
     float angle = atan2(end.y - start.y, end.x - start.x);
     x_step = cos(angle);
     y_step = sin(angle);
@@ -16,14 +21,17 @@ line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord _start, scoord _end
     cur_y = start.y;
 }
 
+//Constructor. Creates some coord objects and calls the above constructor with them.
 template <class IMG_TYPE>
 line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short _start_x, short _start_y, short _end_x, short _end_y, bool _interpolate) 
     : line_iterator(_image, coord(_start_x,_start_y), coord(_end_x,_end_y), _interpolate)
 {}
 
+//Step by one pixel width.
 template<class IMG_TYPE>
 bool line_iterator<IMG_TYPE>::step()
 {
+    //Return false if this would step past the end point
     if(cur_length + 1 > line_length) return false;
     cur_x += x_step;
     cur_y += y_step;
@@ -31,6 +39,8 @@ bool line_iterator<IMG_TYPE>::step()
     return true;
 }
 
+//Shrink to the given min/max x coordinates.
+//  Avoids intermediate steps with two larger jumps
 template<class IMG_TYPE>
 bool line_iterator<IMG_TYPE>::shrink_around_x(float min_x, float max_x)
 {
@@ -47,11 +57,14 @@ bool line_iterator<IMG_TYPE>::shrink_around_x(float min_x, float max_x)
         return true;
 }
 
+
+//Shrink to the given min/max y coordinates.
+//  Avoids intermediate steps with two larger jumps
 template<class IMG_TYPE>
 bool line_iterator<IMG_TYPE>::shrink_around_y(float min_y, float max_y)
 {
-    fcoord temp;
     float steps_to_min, steps_to_max;
+    //start & end are not sorted by y, so some values need to be swapped when the start is below the end.
     if(start.y < end.y)
     {
         steps_to_min = ((min_y-start.y) / y_step);
@@ -121,6 +134,7 @@ coord<short> line_iterator<IMG_TYPE>::cur_coord()
 template<class IMG_TYPE>
 int line_iterator<IMG_TYPE>::idx()
 {
+    //Index equation copied right from CImg.h
     return cur_x + cur_y * image.width();
 }
 
