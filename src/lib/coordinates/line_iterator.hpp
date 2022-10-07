@@ -15,6 +15,12 @@ using coordinates::coord;
 using coordinates::distance;
 using coordinates::dot;
 using coordinates::line;
+
+//An iterator for a line between two points. 
+//  Uses basic stepped interpolation / floored values for intermediate coordinates
+//  Todo: Add bresenham support / thickness
+//  Todo: Add weighted values based on covered pixel area
+//  Todo: Convert to an iterator sub-class for the line.hpp object
 template <typename IMG_TYPE>
 class line_iterator
 {
