@@ -19,7 +19,7 @@ using std::vector;
 using std::map;
 
 typedef map<int,   map<int, short>> linescore;
-typedef map<pair<short, short>, vector<int>> line_map;
+typedef map<pair<short, short>, vector<int>> string_art;
 namespace image_analysis
 {
    
@@ -46,26 +46,26 @@ namespace image_analysis
     }
 
     template <typename T>
-    void score_pin_from_updates(CImg<T>& img, vector<score_update>& to_update, linemap& line_map, linescore& line_scores, float multiplier)
+    void score_pin_from_updates(CImg<T>& img, vector<score_update>& to_update, linemap& string_art, linescore& line_scores, float multiplier)
     {
         int cur_idx;
         long new_score;
         for(score_update su : to_update)
         {
-            new_score = line_scores[su.scored_a][su.scored_b] * line_map[su.scored_a][su.scored_b].size();
-            set_intersection_iterator sti(line_map[su.scored_a][su.scored_b], line_map[su.overlap_a][su.overlap_b], img.width());
+            new_score = line_scores[su.scored_a][su.scored_b] * string_art[su.scored_a][su.scored_b].size();
+            set_intersection_iterator sti(string_art[su.scored_a][su.scored_b], string_art[su.overlap_a][su.overlap_b], img.width());
             std::cout << "\tScoring line " << su.scored_a << ',' << su.scored_b << ", overlapped by " << su.overlap_a << ',' << su.overlap_b << '\n';
-            std::cout << "\tSoring line size: " << line_map[su.scored_a][su.scored_b].size() << ", overlap size: " << line_map[su.overlap_a][su.overlap_b].size() << '\n';
+            std::cout << "\tSoring line size: " << string_art[su.scored_a][su.scored_b].size() << ", overlap size: " << string_art[su.overlap_a][su.overlap_b].size() << '\n';
             while(sti.get_next_match(cur_idx))
             {
                 new_score += img[cur_idx] * multiplier - img[cur_idx];
             }
-            new_score /= line_map[su.scored_a][su.scored_b].size();
+            new_score /= string_art[su.scored_a][su.scored_b].size();
             line_scores[su.scored_a][su.scored_b] = new_score;
         }
     }
 
-    void make_line_map(int pins, int thickness, int resolution, int minimum_separation, linemap& out_map)
+    void make_string_art(int pins, int thickness, int resolution, int minimum_separation, linemap& out_map)
     {
         CImg<u_char> img(resolution, resolution, 1,1);
         vector<int>* cur_line;
@@ -126,10 +126,10 @@ namespace image_analysis
 
     /*
     template<typename T>
-    T update_score(CImg<T>& img, int score_a, int score_b, int overlap_a, int overlap_b, float multiplier, linescore& line_scores, linemap& line_map, T cull_threshold = 0)
+    T update_score(CImg<T>& img, int score_a, int score_b, int overlap_a, int overlap_b, float multiplier, linescore& line_scores, linemap& string_art, T cull_threshold = 0)
     {
-        vector<int>& score_line = line_map[score_a][score_b];
-        vector<int>& overlap_line = line_map[overlap_a][overlap_b];
+        vector<int>& score_line = string_art[score_a][score_b];
+        vector<int>& overlap_line = string_art[overlap_a][overlap_b];
         long score_line_size = score_line.size();
         long old_score = line_scores[score_a][score_b];
         long new_score = old_score * score_line_size;
@@ -160,14 +160,14 @@ namespace image_analysis
     */
 
     template<typename T>
-    void score_all_lines(CImg<T>& image, linemap& line_map, linescore& line_scores, T cull_threshold = 0)
+    void score_all_lines(CImg<T>& image, linemap& string_art, linescore& line_scores, T cull_threshold = 0)
     {
         T score = 0;
         vector<int> to_cull;
 
         int erase_count = 0;
         int total_count = 0;
-        for(auto a : line_map)
+        for(auto a : string_art)
         {
             to_cull.clear();
             for(auto b : a.second)
@@ -187,13 +187,13 @@ namespace image_analysis
             for(int c : to_cull)
             {
                 std::cout << "Culling " << a.first << ',' << c << '\n';
-                line_map[a.first].erase(c);
+                string_art[a.first].erase(c);
                 line_scores[a.first].erase(c);
             }
-            if(line_map[a.first].empty())
+            if(string_art[a.first].empty())
             {
                 std::cout << "Culling " << a.first << ',' << c << '\n';
-                line_map.erase(a.first);
+                string_art.erase(a.first);
                 line_scores.erase(a.first);
             }
         }

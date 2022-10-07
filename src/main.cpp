@@ -2,10 +2,11 @@
 #define cimg_use_png 1
 
 #include "CImg.h"
-#include "line_map.hpp"
+#include "string_art.hpp"
 //#include "image_analysis.hpp"
 #include "image_editing.hpp"
-#include "math.h"
+#include "coord.hpp"
+#include <math.h>
 #include <vector>
 #include <map>
 #include <fstream>
@@ -17,13 +18,14 @@ using std::map;
 using std::pair;
 using std::ofstream;
 using std::ifstream;
-#define SIZE 4096
+#define SIZE 2048
 #define PIN_COUNT 250
 #define STEPS 8000
 #define MIN_SEPARATION 10
-#define MULTIPLIER 0.75
+#define MULTIPLIER 0.5
 #define CULL_THRESH (short)100
 #define SCORE_RANGE 10000
+#define DEPTH 2
 typedef short IMG_TYPE;
 int main(int, char**) 
 {
@@ -32,7 +34,7 @@ int main(int, char**)
 
         std::cout << "Processing input image...\n";
 
-    cimg_library::CImg<IMG_TYPE> img("/home/danny/Documents/Prog/String_Wind_Subtractive/images/vg.png");
+    cimg_library::CImg<IMG_TYPE> img("/home/danny/Programming/String_Wind_Subtractive/images/skull.png");
     img = img.get_channels(0,2); //remove alpha channel
     cimg_library::CImg<IMG_TYPE> cmp_img(img.width(),img.height(),1,3,0);
     cimg_library::CImg<IMG_TYPE> str_img(SIZE,SIZE,1,1,255);
@@ -42,8 +44,8 @@ int main(int, char**)
 
         std::cout << "Generating line information...\n";
 
-    vector<pair<short,short>> pins = circular_pins(SIZE/2,SIZE/2, SIZE/2-10, PIN_COUNT);
-    line_map<IMG_TYPE> lines(img, pins,MIN_SEPARATION);
+    vector<coord<short>> pins = circular_pins(SIZE/2,SIZE/2, SIZE/2-10, PIN_COUNT);
+    string_art<IMG_TYPE> lines(img, pins,MIN_SEPARATION);
 
     ofstream instruction_file("/home/danny/Documents/Prog/String_Wind_Subtractive/instruction_file_400_cull.csv");
 
@@ -59,8 +61,8 @@ int main(int, char**)
     {
             std::cout << i << ": \n";
             std::cout << "\tFinding next pin... ";
-            
-        next_pin = lines.best_pin_for(cur_pin,best_score);
+        
+        next_pin = lines.best_pin_for(cur_pin,best_score,DEPTH); 
 
             std::cout << "\tNext Pin: " << next_pin << ", Score: " << best_score << '\n';
 
@@ -68,32 +70,32 @@ int main(int, char**)
 
             std::cout << "\tUpdating scores...\n";
 
-        lines.update_scores(cur_pin, next_pin, MULTIPLIER);
+        lines.update_scores(cur_pin, next_pin);
 
         //image_editing::mult_points(img, lines.line_between(cur_pin, next_pin), MULTIPLIER);
         
 
         //image_analysis::add_to_updates(min_pin, max_pin, line_scores, to_update);
-        //image_analysis::score_pin_from_updates(img, to_update[next_pin], line_map, line_scores, MULTIPLIER);
-        //image_editing::mult_points(img, line_map[min_pin][max_pin], MULTIPLIER);
-       // image_editing::score_and_multiply<IMG_TYPE>(img, min_pin, max_pin, line_map, to_update,MULTIPLIER);
+        //image_analysis::score_pin_from_updates(img, to_update[next_pin], string_art, line_scores, MULTIPLIER);
+        //image_editing::mult_points(img, string_art[min_pin][max_pin], MULTIPLIER);
+       // image_editing::score_and_multiply<IMG_TYPE>(img, min_pin, max_pin, string_art, to_update,MULTIPLIER);
 
             std::cout << "\tDrawing String...\n";
 
-        image_editing::draw_line<IMG_TYPE>(str_img, pins[cur_pin].first, pins[cur_pin].second, pins[next_pin].first, pins[next_pin].second, 0);
+        image_editing::draw_line<IMG_TYPE>(str_img, pins[cur_pin].x, pins[cur_pin].y, pins[next_pin].x, pins[next_pin].y, 0);
         if((i+1)%100 == 0)
         {
             img.get_normalize(0,255).save("/home/danny/Programming/String_Wind_Subtractive/images/data.png");
-            str_img.save("//home/danny/Programming/String_Wind_Subtractive/images/strings.png");
+            (str_img * 0.5 + img.get_normalize(0,255) * 0.5).save("//home/danny/Programming/String_Wind_Subtractive/images/strings.png",i);
         }
         /*
-        if(max_pin != line_map[min_pin].begin()->first) //Leave at least one connection for each pin, so that it doesn't end the path.
+        if(max_pin != string_art[min_pin].begin()->first) //Leave at least one connection for each pin, so that it doesn't end the path.
         {
-            line_map[min_pin].erase(max_pin);
+            string_art[min_pin].erase(max_pin);
             line_scores[min_pin].erase(max_pin);
-            if(line_map[min_pin].empty())
+            if(string_art[min_pin].empty())
             {
-                line_map.erase(min_pin);
+                string_art.erase(min_pin);
                 line_scores.erase(min_pin);
             }
         }*/

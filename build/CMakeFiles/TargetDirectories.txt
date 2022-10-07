@@ -26,6 +26,8 @@
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/ContinuousCoverage.dir
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/ContinuousMemCheck.dir
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/ContinuousSubmit.dir
+/home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/line_iterator.dir
+/home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/string_art.dir
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/Stringwind_Subtractive.dir
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/package.dir
 /home/danny/Programming/String_Wind_Subtractive/build/CMakeFiles/package_source.dir

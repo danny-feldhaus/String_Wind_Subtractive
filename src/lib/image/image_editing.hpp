@@ -24,21 +24,21 @@ namespace image_editing
     }
     /*
     template<typename T>
-    void score_and_multiply(CImg<T>& img, int pin_a, int pin_b, linemap& line_map, map<int, vector<vector<int>>>& to_update, float multiplier)
+    void score_and_multiply(CImg<T>& img, int pin_a, int pin_b, linemap& string_art, map<int, vector<vector<int>>>& to_update, float multiplier)
     {
-        for(auto other_a = line_map.lower_bound(pin_a+1); other_a != line_map.end() && other_a->first < pin_b; ++other_a)
+        for(auto other_a = string_art.lower_bound(pin_a+1); other_a != string_art.end() && other_a->first < pin_b; ++other_a)
         {
             for(auto other_b = other_a->second.begin(); other_b != other_a->second.end(); other_b++)
             {
                 if(other_b -> first < pin_a || other_b -> first > pin_b)
                 {
                     to_update[]
-                    image_analysis::update_score(img, other_a->first, other_b->first, pin_a, pin_b, multiplier, line_scores, line_map);
+                    image_analysis::update_score(img, other_a->first, other_b->first, pin_a, pin_b, multiplier, line_scores, string_art);
                 }
             }       
         }
-        mult_points(img, line_map[pin_a][pin_b], multiplier);
-        line_scores[pin_a][pin_b] = image_analysis::average_along_line(img, line_map[pin_a][pin_b]);
+        mult_points(img, string_art[pin_a][pin_b], multiplier);
+        line_scores[pin_a][pin_b] = image_analysis::average_along_line(img, string_art[pin_a][pin_b]);
         return;
     }   */
 
@@ -61,9 +61,9 @@ namespace image_editing
 
     /*
     template<typename T>
-    void draw_all_lines(CImg<T>& img, linemap& line_map)
+    void draw_all_lines(CImg<T>& img, linemap& string_art)
     {
-        for(auto a : line_map)
+        for(auto a : string_art)
         {
             for(auto b : a.second)
             {

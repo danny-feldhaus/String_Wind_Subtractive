@@ -11,16 +11,32 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 find_package(PNG REQUIRED)
 find_package(X11 REQUIRED)
 
-include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR}/src/lib/image)
-include_directories(${CMAKE_SOURCE_DIR}/src/lib/CImg)
-include_directories(${PNG_INCLUDE_DIR})
-include_directories(${X11_INCLUDE_DIR})
+set(SOURCES src/lib/coordinates/coord.hpp src/lib/coordinates/line_iterator.hpp src/lib/coordinates/line.hpp src/lib/image/image_editing.hpp src/lib/CImg/CImg.h src/lib/coordinates/coord_cimg_plugin.h)
 
-add_executable(Stringwind_Subtractive src/main.cpp)
+add_library(line_iterator src/lib/coordinates/line_iterator.cpp ${SOURCES})
+add_library(string_art src/lib/image/string_art.cpp ${SOURCES})
+add_executable(Stringwind_Subtractive src/main.cpp ${SOURCES})
+
+target_include_directories(Stringwind_Subtractive PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(Stringwind_Subtractive PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/image)
+target_include_directories(Stringwind_Subtractive PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/CImg)
+target_include_directories(Stringwind_Subtractive PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/coordinates)
+target_include_directories(Stringwind_Subtractive PRIVATE ${PNG_INCLUDE_DIR})
+target_include_directories(Stringwind_Subtractive PRIVATE ${X11_INCLUDE_DIR})
+
+target_include_directories(line_iterator PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/CImg)
+target_include_directories(line_iterator PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/coordinates)
+
+target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/CImg)
+target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/coordinates)
+target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/image)
+
+target_link_libraries(string_art line_iterator)
 
 target_link_libraries(Stringwind_Subtractive ${PNG_LIBRARIES})
 target_link_libraries(Stringwind_Subtractive ${X11_LIBRARIES})
+target_link_libraries(Stringwind_Subtractive line_iterator)
+target_link_libraries(Stringwind_Subtractive string_art)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
