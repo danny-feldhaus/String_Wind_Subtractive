@@ -22,12 +22,19 @@ class line_iterator
     typedef coord<short> scoord;
     typedef coord<float> fcoord;
     public:
+        //Distance from start to end
         int line_length;
+        //Distance from (cur_x, cur_y) to start
         int cur_length = 0;
-        fcoord start, end;
+        //Start and end coordinates of line
+        tcoord start, end;
 
+        //Constructor, make iterator from two coords
         line_iterator(tcimg &_image, scoord _start, scoord _end, bool _interpolate = false);
+        
+        //Constructor, make iterator from x / y values 
         line_iterator(tcimg &_image, short _start_x, short _start_y, short _end_x, short _end_y, bool _interpolate = false);
+        
         bool step();
         //Shrink aroudn the given min and max x coordinates
         bool shrink_around_x(float min_x, float max_x);
@@ -35,24 +42,41 @@ class line_iterator
         //Shrink around the given min and max y coordinates
         bool shrink_around_y(float min_y, float max_y);
 
+        //Step backwards by one. 
+        //Returns:
+        //   true: Step successful
+        //   false: At start position
         bool step_back();
 
+        //Get the image value at the iterator's current position
         IMG_TYPE get();
-
+        
+        //Set the image value at the iterator's current position 
+        //  Value is set using linear interpolation if _interpolation==true
         IMG_TYPE set(IMG_TYPE val);
 
+        //Get the floored whole-number coordinate of the current position
         scoord cur_coord();
 
+        //Get the idx of the current position in the imagd
         int idx();
 
 
     private:
+        //The image being iterated over
         cimg_library::CImg<IMG_TYPE> &image;
+        
+        //Determines image value get/set methods (interpolated / floored)
         bool interpolate;
+        //Current position (Todo: make this a coord)
         float cur_x, cur_y;
+        //Step size in x / y directions
         float x_step, y_step;
 };
 
+//Depreciated, but useful.
+//An iterator version of the std::set_intersection method
+//Improves speed by not copying to a new set.
 class set_intersection_iterator
 {
 public:
@@ -114,6 +138,8 @@ private:
     int max_step_size;
 };
 
+//Iterates over the region of a line that intersects with another line
+//Todo: transition from coords to line objects.
 template <typename IMG_TYPE>
 class line_intersection_iterator
 {
@@ -151,6 +177,8 @@ class line_intersection_iterator
         return scoord((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
     }
 
+    //Uses some linear algebra to get the angle 
+    //Todo: move this to line.hpp
     float get_angle()
     {
         a_diff = a_end - a_start;
@@ -162,13 +190,16 @@ class line_intersection_iterator
         return std::acos(cosine);
     }
 
+    //Uses some very cool math to find the width of the intersection (equal to the length of the iterator)
+    //Todo: make a readme to explain the math
     float get_overlap_width(float width_buffer)
     {
         float w =(1.0f / sin(angle)) + width_buffer;
         if(w > min(a_mag,b_mag)) w = min(a_mag,b_mag);
         return w + width_buffer;
     }
-
+  
+    //Shrinks the line iterator to the overlapping region
     void shrink_iterator()
     {
         //std::cout << "Start / end before: " << li.start.x << ',' << li.start.y << "->" << li.end.x << ',' << li.end.y << "\n";
@@ -218,16 +249,22 @@ class line_intersection_iterator
     {
         shrink_iterator();
     }
+
+    //Wrapper for contained iterator. 
+    //Get current whole-number coordinate
     scoord cur_coord()
     {
         return li.cur_coord();
     }
 
+    //Wrapper for contained iterator. 
+    //Step coordinate forward by 1 pixel width
+    //Returns:
+    //   false: Reached end of overlap
+    //   true: Stepped forward
     bool step()
     {
         return li.step();
     }
-
-
 };
 #endif
