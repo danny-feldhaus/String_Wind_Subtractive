@@ -35,54 +35,111 @@ class line_iterator
         //Start and end coordinates of line
         tcoord start, end;
 
-        //Constructor, make iterator from two coords
-        line_iterator(tcimg &_image, scoord _start, scoord _end, bool _interpolate = false);
+        /**
+         * @brief Construct a new line iterator\<IMG TYPE\>::line iterator object from two coord objects
+         * 
+         * @param _image Image to iterate over
+         * @param point_a One end of the line  
+         * @param point_b Other end of the line
+         * @param _interpolate
+         * - true: Pixel values are read / written using floating point coordinates and interpolation.
+         * - false: Pixel values are read / written using floored whole-number coordinates.
+         */
+        line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate = false);
         
-        //Constructor, make iterator from x / y values 
-        line_iterator(tcimg &_image, short _start_x, short _start_y, short _end_x, short _end_y, bool _interpolate = false);
+        /**
+         * @brief Construct a new line iterator object
+         * 
+         * @param _image Image to iterate over
+         * @param ax X coordinate of first point
+         * @param ay Y coordinate of first point
+         * @param bx X coordinate of second point
+         * @param by Y coordinate of second point
+         * @param _interpolate 
+         * - true: Pixel values are read / written using floating point coordinates and interpolation.
+         * - false: Pixel values are read / written using floored whole-number coordinates.
+         */
+        line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate = false);
         
+        /**
+         * @brief Step one pixel width forward
+         * 
+         * @return true Step successful
+         * @return false Step unsuccessful, at end of line
+         */
         bool step();
-        //Shrink aroudn the given min and max x coordinates
-        bool shrink_around_x(float min_x, float max_x);
         
-        //Shrink around the given min and max y coordinates
-        bool shrink_around_y(float min_y, float max_y);
-
-        //Step backwards by one. 
-        //Returns:
-        //   true: Step successful
-        //   false: At start position
+        /**
+         * @brief Step one pixel width backward
+         * @details Similar to step(), except it moves in the opposite direction.
+         * @return true Step successful
+         * @return false Step unsuccessful, at beginning of line
+         */
         bool step_back();
 
-        //Get the image value at the iterator's current position
+        /**
+         * @brief Shrink line to the given range of x values
+         * @details Shrinks to the smallest range that contains min_x and max_x that can be reached with step() and step_back()
+         * @param min_x Minimum x value
+         * @param max_x Maximum x value
+         * @return true Shrink successful
+         * @return false Shrink unsuccessful, bounds not in range
+         */
+        bool shrink_around_x(float min_x, float max_x);
+        
+        /**
+         * @brief  Shrink line to the given range of y values
+         * @details Shrinks to the smallest range that contains min_y and max_y that can be reached with step() and step_back()
+         * @param min_y Minimum y
+         * @param max_y Maximum y
+         * @return true Shrink successful
+         * @return false Shrink unsuccessful, bounds not in range
+         */
+        bool shrink_around_y(float min_y, float max_y);
+
+
+
+        /**
+         * @brief Get image value at current position
+         * @details
+         * - _interpolation == true: Value is interpolated using floating point coordinate (see CImg documentation on linear_atXY() for more detail)
+         * - _interpolation == false: Value is found using whole-number coordinates.
+         * @return IMG_TYPE image value
+         */
         IMG_TYPE get();
         
-        //Set the image value at the iterator's current position 
-        //  Value is set using linear interpolation if _interpolation==true
+        /**
+         * @brief Set image value at current position
+         * @details
+         * - _interpolation == true: Value is set at interpolated position using floating point coordinate (see CImg documentation on set_linear_atXY() for more detail)
+         * - _interpolation == false: Value is set using whole-number coordinates.
+         * @param val value to set
+         * @return IMG_TYPE equal to val
+         */
         IMG_TYPE set(IMG_TYPE val);
 
-        //Get the floored whole-number coordinate of the current position
+        /**
+         * @brief A new-instance whole-number coord of the current position
+        */
         scoord cur_coord();
 
-        //Get the idx of the current position in the imagd
+        /**
+         * @brief The current pixel's CImg index
+        */
         int idx();
 
 
     private:
-        //The image being iterated over
         cimg_library::CImg<IMG_TYPE> &image;
-        
-        //Determines image value get/set methods (interpolated / floored)
         bool interpolate;
-        //Current position (Todo: make this a coord)
-        float cur_x, cur_y;
-        //Step size in x / y directions
-        float x_step, y_step;
+        coord<float> cur_pos;
+        float x_step, y_step;/**x and y step size*/
 };
 
-//Depreciated, but useful.
-//An iterator version of the std::set_intersection method
-//Improves speed by not copying to a new set.
+/**
+ * @brief An iterator version of std::set_intersection()
+ * @warning Depreciated
+ */
 class set_intersection_iterator
 {
 public:

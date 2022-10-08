@@ -1,16 +1,23 @@
+/**
+ * @file line_iterator.cpp
+ * @author Danny Feldhaus (danny.b.feldhaus@gmail.com)
+ * @brief Iterates between two points on a CImg image
+ * @version 0.1
+ * @date 2022-10-07
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "line_iterator.hpp"
 
-//Constructor. Calculates starting values and places position at start 
-//  start / end do not correspond to _start and _end, but instead whichever has the lowest/highest x value
-
 template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord _start, scoord _end, bool _interpolate) 
+line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate) 
     :  image(_image)
 {
     interpolate = _interpolate;
     //Order start/end by x value. This is to avoid lines with swapped start/end behaving differently.
-    start = (_start.x < _end.x) ? _start : _end;
-    end   = (_start.x < _end.x) ? _end : _start;
+    start = (point_a.x < point_b.x) ? point_a : point_b;
+    end   = (point_a.x < point_b.x) ? point_b : point_a;
     interpolate = _interpolate;
     line_length = distance(start,end);
     //Todo: make a line.hpp function for this
@@ -23,8 +30,8 @@ line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord _start, scoord _end
 
 //Constructor. Creates some coord objects and calls the above constructor with them.
 template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short _start_x, short _start_y, short _end_x, short _end_y, bool _interpolate) 
-    : line_iterator(_image, coord(_start_x,_start_y), coord(_end_x,_end_y), _interpolate)
+line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate) 
+    : line_iterator(_image, coord(ax,ay), coord(bx,by), _interpolate)
 {}
 
 //Step by one pixel width.

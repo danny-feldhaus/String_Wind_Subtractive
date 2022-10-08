@@ -1,9 +1,11 @@
 build/*
 .vscode/
+docs/*
 *.csv
 *.png
 *.json
 *.o
+
 !vg.png
 src/lib/CImg
 build/Stringwind_Subtractive
