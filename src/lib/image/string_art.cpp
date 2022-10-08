@@ -131,6 +131,7 @@ IMG_TYPE string_art<IMG_TYPE>::calculate_score(short pin_a, short pin_b, u_char 
     {
         case 0: default:
         {
+            
             line_iterator<IMG_TYPE> li(image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, false);
             score = 0;
             do
