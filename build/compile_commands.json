@@ -1,17 +1,17 @@
 [
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++  -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -g -o CMakeFiles/line_iterator.dir/src/lib/coordinates/line_iterator.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp",
+  "command": "/usr/bin/g++ -DDEBUG_PATH_STEPS -DDEBUG_SCORING -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -O3 -o CMakeFiles/line_iterator.dir/src/lib/coordinates/line_iterator.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp"
 },
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++  -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -Wall -Wextra -g -o CMakeFiles/string_art.dir/src/lib/image/string_art.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp",
+  "command": "/usr/bin/g++ -DDEBUG_PATH_STEPS -DDEBUG_SCORING -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -Wall -Wextra -O3 -o CMakeFiles/string_art.dir/src/lib/image/string_art.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp"
 },
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++  -I/home/danny/Programming/String_Wind_Subtractive/src -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -g -o CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/main.cpp",
+  "command": "/usr/bin/g++ -DDEBUG_PATH_STEPS -DDEBUG_SCORING -I/home/danny/Programming/String_Wind_Subtractive/src -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -O3 -o CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/main.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/main.cpp"
 }
 ]

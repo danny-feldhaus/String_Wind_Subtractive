@@ -12,6 +12,7 @@
 #define COORD_H
 #define cimg_plugin "../coordinates/coord_cimg_plugin.h"
 #include <math.h>
+#include <iostream>
 using std::sqrt;
 using std::pow;
 
@@ -30,7 +31,6 @@ namespace coordinates
         T y;
         /**
          * @brief Construct a new coord object
-         * 
          * @param x 
          * @param y 
          */
@@ -61,14 +61,23 @@ namespace coordinates
         /**
          * @brief Division operator
          * @details Similar to operator/=(const coord& other), except that it returns a new coord instance.
-         * @param div Coord object to divide
-         * @return coord A new instance of the result
+         * @param div Value to divide by
+         * @return coord New instance of the result
          */
         coord operator/(const float div) const
         {
             return {(T)(x/div),(T)(y/div)};
         }
-
+        /**
+         * @brief Multiplication operator
+         * @details Similar to operator*=(const coord& other), except that it returns a new coord instance.
+         * @param mult Value to multiply by
+         * @return coord New instance of the result
+         */
+        coord operator*(const float mult) const
+        {
+            return {(T)(x*mult),(T)(y*mult)};
+        }
         /**
          * @brief In-place subtraction operator
          * @details Subtracts the coordinates of other from the local coordinates
@@ -116,6 +125,7 @@ namespace coordinates
             return((x != other.x) || (y != other.y));
         }
 
+
         /**
          * @brief Implicit conversion to a new instance of type <int>
          * @warning May result in a loss of precision
@@ -145,6 +155,8 @@ namespace coordinates
         {
             return coord<short>((short)x,(short)y);
         }
+        template <typename U>
+        friend std::ostream& operator<<(std::ostream& os, const coord<U>& c); 
     };
 
     /**
@@ -173,6 +185,14 @@ namespace coordinates
     {
         return a.x * b.x + a.y * b.y;
     }
+
+    template <typename T>
+    std::ostream& operator<<(std::ostream& os, const coord<T>& c)
+    {
+        os << '(' << c.x << ',' << c.y << ')';
+        return os;
+    }
+
 }
 
 

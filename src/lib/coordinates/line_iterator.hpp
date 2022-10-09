@@ -33,7 +33,7 @@ class line_iterator
         //Distance from (cur_x, cur_y) to start
         int cur_length = 0;
         //Start and end coordinates of line
-        tcoord start, end;
+        fcoord start, end;
 
         /**
          * @brief Construct a new line iterator\<IMG TYPE\>::line iterator object from two coord objects
@@ -103,10 +103,10 @@ class line_iterator
          * @brief Get image value at current position
          * @details
          * - _interpolation == true: Value is interpolated using floating point coordinate (see CImg documentation on linear_atXY() for more detail)
-         * - _interpolation == false: Value is found using whole-number coordinates.
+         * - _interpolation ==fsv false: Value is found using whole-number coordinates.
          * @return IMG_TYPE image value
          */
-        IMG_TYPE get();
+        IMG_TYPE get() const;
         
         /**
          * @brief Set image value at current position
@@ -132,8 +132,8 @@ class line_iterator
     private:
         cimg_library::CImg<IMG_TYPE> &image;
         bool interpolate;
-        coord<float> cur_pos;
-        float x_step, y_step;/**x and y step size*/
+        fcoord cur_pos;
+        fcoord step_size;/**x and y step size*/
 };
 
 /**
@@ -328,6 +328,11 @@ class line_intersection_iterator
     bool step()
     {
         return li.step();
+    }
+
+    IMG_TYPE get() const
+    {
+        return li.get();
     }
 };
 #endif

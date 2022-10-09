@@ -4,6 +4,8 @@ project(Stringwind_Subtractive VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
+add_compile_definitions(DEBUG_SCORING DEBUG_PATH_STEPS)
+
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -30,8 +32,12 @@ target_include_directories(line_iterator PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/coo
 target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/CImg)
 target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/coordinates)
 target_include_directories(string_art PRIVATE ${CMAKE_SOURCE_DIR}/src/lib/image)
+target_include_directories(string_art PRIVATE ${PNG_INCLUDE_DIR})
+target_include_directories(string_art PRIVATE ${X11_INCLUDE_DIR})
 
 target_link_libraries(string_art line_iterator)
+target_link_libraries(string_art ${PNG_LIBRARIES})
+target_link_libraries(string_art ${X11_LIBRARIES})
 
 target_link_libraries(Stringwind_Subtractive ${PNG_LIBRARIES})
 target_link_libraries(Stringwind_Subtractive ${X11_LIBRARIES})

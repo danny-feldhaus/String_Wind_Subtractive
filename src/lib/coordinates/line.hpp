@@ -39,6 +39,12 @@ namespace coordinates
     {
         return dot(line_a.b - line_a.a,line_b.b-line_b.a);
     }
+
+    template <class T = short>
+    static double angle(const line<T> &line_a, const line<T> &line_b)
+    {
+        return acos(dot(line_a.b - line_a.a,line_b.b-line_b.a) / (line_a.length() * line_b.length()));
+    }
 }
 
 
