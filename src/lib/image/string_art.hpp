@@ -6,14 +6,24 @@
 #include "coord.hpp"
 #include "CImg.h"
 #include "line_iterator.hpp"
+#include "output.hpp"
 #include <map>
 #include <vector>
 #include <deque>
+#include <numeric>
+
 #include <math.h>
 #include <assert.h>
 #include <stdexcept>
 #include <string>
 #include <iomanip>
+#include <omp.h>
+#ifdef DEBUG_TIMING
+#include <chrono>
+using namespace std::chrono;
+#endif
+
+
 using std::make_pair;
 using std::map;
 using std::max;
@@ -34,9 +44,11 @@ template <typename IMG_TYPE>
 class string_art
 {
     typedef cimg_library::CImg<IMG_TYPE> tcimg;
+    typedef cimg_library::CImg<float> fcimg;
     typedef coord<short> scoord;
 
     public:
+
         /**
          * @brief Construct a new string art object
          * 
@@ -68,12 +80,24 @@ class string_art
         bool save_string_image(const char* image_file, bool append_debug_info = false);
 
     private:
+        #ifdef DEBUG
+            progress_object po;
+            #ifdef DEBUG_TIMING
+                float update_time;
+                float getscore_time;
+            #endif
+            #ifdef DEBUG_OVERLAPS
+                cimg_library::CImg<u_char> overlap_image;
+            #endif
+        #endif
+        
         /** @brief Re-sized image from the input filepath */
         const tcimg rgb_image;
         /** @brief Same image as rgb_image in Lab color space */
         tcimg lab_image;
         /** @brief Image darkness map. 0 = white, 10000 = black */
         tcimg darkness_image;
+
         /** @brief Visual representation of the chosen string path */
         tcimg string_image;
         /** @brief Copy of string_image, one step behind.*/
@@ -104,7 +128,8 @@ class string_art
          * @details Each (x,y) pair corresponds to a pair of pins that may have a string drawn between them.
         */
         scoord* line_pairs;
-
+        /** @brief Map of weighted line lengths (only pixels in mask are counted)*/
+        map<short, map<short, float>> line_lengths;
 
  
         
@@ -188,6 +213,12 @@ class string_art
          */
         void draw_line(tcimg& image, short pin_a, short pin_b, IMG_TYPE color = 0);
         
+        /**
+         * @brief Remove a line from the list
+         * @param line_index Index of the line in line_scores and line_pairs
+         */
+
+        void cull_line(const int line_index);
         /**
          * @brief Find the highest-scoring pin out of all pins
          * @details Used to find the first pin in the path

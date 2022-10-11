@@ -1,6 +1,6 @@
 #include <iostream>
 #define cimg_use_png 1
-
+#define cimg_use_openmp 1
 #include "CImg.h"
 #include "string_art.hpp"
 //#include "image_analysis.hpp"
@@ -18,30 +18,36 @@ using std::map;
 using std::pair;
 using std::ofstream;
 using std::ifstream;
-#define SIZE 4096
-#define PIN_COUNT 250
-#define STEPS 4000
-#define MIN_SEPARATION 10
-#define MULTIPLIER 0.5
+#define SIZES {4096}
+#define PIN_COUNTS {250}
+#define STEPS {4000}
+#define MIN_SEPARATIONS {10}
+#define MODIFIERS {0.35,0.4,0.45,0.5,0.55,0.6,0.7}
 #define CULL_THRESH (short)100
-#define SCORE_RANGE 10000
-#define DEPTH 2
-#define IMAGE_PATH "/home/danny/Programming/String_Wind_Subtractive/images/vg"
-#define METHOD 2
-typedef short IMG_TYPE;
+#define DEPTHS {3}
+#define IMAGE_PATHS {"/home/danny/Programming/String_Wind_Subtractive/images/vg2trans"}
+#define METHODS {0}
+typedef float IMG_TYPE;
 int main(int, char**) 
 {
-    short* steps;
+    short* instructions;
     
-    for(float m = 0.2; m < 1; m += 0.1) 
+    for(int size : SIZES)
+    for(int pin_count : PIN_COUNTS)
+    for(int steps : STEPS)
+    for(int separation : MIN_SEPARATIONS)
+    for(float modifier : MODIFIERS)
+    for(int depth : DEPTHS)
+    for(const char* path : IMAGE_PATHS)
+    for(int method : METHODS)
     {
         std::stringstream filename;
-        filename << std::fixed << std::setprecision(2) << IMAGE_PATH << m << "_s=" << STEPS << "_r=" << SIZE << "_meth=" << METHOD << ".png";
-        std::cout <<  "Trial: Multiplier = " << m << "x, Steps = " << STEPS << ", Resolution: " << SIZE << ", Image = " << filename.str() << "\n\n";
+        filename << std::fixed << std::setprecision(2) << path << "_mod=" << modifier << "_s=" << steps << "_r=" << size << "_meth=" << method << ".png";
 
-        string_art<IMG_TYPE> sa(IMAGE_PATH ".png", SIZE, PIN_COUNT, 0.95f, MIN_SEPARATION, METHOD, m);
-        steps = sa.generate(STEPS);
+        string_art<IMG_TYPE> sa((std::string(path) + ".png").c_str(), size, pin_count, 0.95f, separation, method, modifier);
+        instructions = sa.generate(steps);
+
         sa.save_string_image(filename.str().c_str(),true);
-        delete[] steps;
+        delete[] instructions;
     }
-};
+}

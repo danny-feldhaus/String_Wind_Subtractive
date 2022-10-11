@@ -147,3 +147,5 @@ int line_iterator<IMG_TYPE>::idx()
 template class line_iterator<short>;
 template class line_iterator<bool>;
 template class line_iterator<u_char>;
+template class line_iterator<int>;
+template class line_iterator<float>;

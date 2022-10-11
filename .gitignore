@@ -9,4 +9,4 @@ docs/*
 !vg.png
 src/lib/CImg
 build/Stringwind_Subtractive
-build/Testing/Temporary/*.log
+build/Testing
