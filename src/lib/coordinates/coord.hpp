@@ -13,6 +13,7 @@
 #define cimg_plugin "../coordinates/coord_cimg_plugin.h"
 #include <math.h>
 #include <iostream>
+#include <string>
 using std::sqrt;
 using std::pow;
 
@@ -125,6 +126,10 @@ namespace coordinates
             return((x != other.x) || (y != other.y));
         }
 
+        std::string to_string() const
+        {
+            return "(" + std::to_string(x) + "," + std::to_string(y) + ")";
+        }
 
         /**
          * @brief Implicit conversion to a new instance of type <int>
@@ -155,6 +160,7 @@ namespace coordinates
         {
             return coord<short>((short)x,(short)y);
         }
+
         template <typename U>
         friend std::ostream& operator<<(std::ostream& os, const coord<U>& c); 
     };
@@ -189,7 +195,7 @@ namespace coordinates
     template <typename T>
     std::ostream& operator<<(std::ostream& os, const coord<T>& c)
     {
-        os << '(' << c.x << ',' << c.y << ')';
+        os << c.to_string();
         return os;
     }
 

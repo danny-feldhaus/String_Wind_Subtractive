@@ -1,37 +1,50 @@
 #include "string_art.hpp"
 
 template <class IMG_TYPE>
-string_art<IMG_TYPE>::string_art(const char* _image_file, const short _resolution,const short _pin_count, float _pin_radius, short _min_separation, u_char _score_method, float _score_modifier) 
-:   
-    rgb_image(make_rgb_image(_image_file, _resolution)), 
-    lab_image(rgb_image.get_shared_channels(0,2).get_RGBtoLab()),
-    darkness_image(make_darkness_image(rgb_image)),
-    pin_count(_pin_count), 
-    pins(circular_pins(rgb_image, _pin_radius, _pin_count)),
-    score_method(_score_method),
-    score_modifier(_score_modifier),
-    line_count(calculate_line_count(_pin_count, _min_separation))
-{   
-    #ifdef DEBUG
-        #ifdef DEBUG_PATH_STEPS
-        po.add_int("Step",1,0);
-        #endif
-        #ifdef DEBUG_SCORING
-            po.add_flt("Score", 0, 2, 1);
-        #endif
-        #ifdef DEBUG_TIMING
-            po.add_flt("Cur Steps Per Second", 0, 1, 2);
-            po.add_flt("Avg Steps Per Second", 0, 1, 2);
-            po.add_flt("Local Avg Steps Per Second", 0, 1, 2);
-                po.add("\% Updating", "0%", 2);
-                po.add("\% Getting Score", "0%", 2);
-                po.add("\% Other", "0%", 2);
-
-        #endif
-    #endif
+string_art<IMG_TYPE>::string_art(const char *_image_file, const short _resolution, const short _pin_count, float _pin_radius, short _min_separation, u_char _score_method, float _score_modifier, const short _score_depth, const float accessibility_weight, const float localsize_weight, const float neighbor_weight)
+    : 
+      dm(display_manager<IMG_TYPE>(1024,1024,"Debug Info")),
+      rgb_image(make_rgb_image(_image_file, _resolution)),
+      lab_image(rgb_image.get_shared_channels(0, 2).get_RGBtoLab()),
+      darkness_image(make_darkness_image(rgb_image)),
+      pin_count(_pin_count),
+      pins(circular_pins(rgb_image, _pin_radius, _pin_count)),
+      score_method(_score_method),
+      score_modifier(_score_modifier),
+      score_depth(_score_depth),
+      line_count(calculate_line_count(_pin_count, _min_separation)),
+      wg_accessibility(accessibility_weight),
+      wg_localsize(localsize_weight),
+      wg_neighbor(neighbor_weight)
+{
     build_lines(_min_separation);
+    //std::cout << "Mapping lines to slices...\n";
+    //CImgList<u_short> slices = map_lines_to_slices();
+    std::cout << "Building accessibility map...\n";
+    accessibility_map = make_accessibility_map();
+    dm.add_image(&accessibility_map, 2);
+    std::cout << "Building region size map...\n";
+    region_size_map = make_region_size_map();
+    dm.add_image(&region_size_map, 2);
+    std::cout << "Weighting darkness image...\n";
+    //weight_darkness_image();
+    dm.add_image(&darkness_image, 0);
+    dm.update();
     string_image = tcimg(rgb_image.width(), rgb_image.height(), 1, 1, 0);
+    std::cout << "Scoring all lines...\n";
     score_all_lines();
+    dm.add_image(&string_image, 1);
+    /*
+    #if defined(DEBUG) && defined(DEBUG_SCORING)
+        CImg<int> am = accessibility_map.get_normalize(0,255);
+        cd -> display(am.crop(am.width()/4,am.height()/4,0,0,am.width()/2,am.height()/2,0,0));
+        //std::cout << "Min / Max Accessibility: " << am.min() << ", " << am.max() << '\n';
+        while(cd->key() != escape_key)
+            cd -> wait();
+        //std::cout << "Scoring all lines...\n";
+    #endif
+    */
+    //debug_show_all_connections();
     return;
 }
 
@@ -41,84 +54,201 @@ string_art<IMG_TYPE>::~string_art()
     delete[] pins;
     delete[] line_scores;
     delete[] line_pairs;
+
 }
 
 template <class IMG_TYPE>
-short* string_art<IMG_TYPE>::generate(const short path_steps)
+short *string_art<IMG_TYPE>::generate(const short path_steps)
 {
-    if(path_steps < 2)throw std::domain_error("Number of steps is out of range (" + std::to_string(path_steps) + ")");
-    #if defined(DEBUG)
-        po.reset_progress(path_steps);
-        #if defined(DEBUG_TIMING)
-            std::deque<float> last_10_sps;
-            float runtime_seconds = 0.f;
-        #endif
-        #if defined(DEBUG_OVERLAP)
-            cimg_library::CImg_Display cd;
-        #endif
-    #endif
-    short* path = new short[path_steps];
+    if (path_steps < 2)
+        throw std::domain_error("Number of steps is out of range (" + std::to_string(path_steps) + ")");
+#if defined(DEBUG)
+    //cd_image = CImg<IMG_TYPE>(cd_size, cd_size, 1, 3, 255);
+    #if defined(DEBUG_TIMING)
+        std::deque<float> last_10_sps;
+        float runtime_seconds = 0.f;
+        float getscore_time = 0.f;
+        float update_time = 0.f;
+    #endif //DEBUG_TIMING
+    bool gen_done = false;
+    short step = 0;
+#endif //DEBUG
+    short *path = new short[path_steps];
     IMG_TYPE score = 0;
 
     path[0] = best_pin();
-
-    for(int i = 1; i < path_steps; i++)
+    //Split into two threads for processing and display
+    #pragma omp parallel num_threads(2), shared(po, gen_done, string_image)
     {
-        #if defined(DEBUG) && defined(DEBUG_TIMING)
-        auto start = high_resolution_clock::now();
-        #endif
+    if(omp_get_thread_num() == 0) //Processing
+    {
+        for (step = 1; step < path_steps; step++)
+        {
+    #if defined(DEBUG) && defined(DEBUG_TIMING)
+            auto start = high_resolution_clock::now();
+            auto start_getscore = high_resolution_clock::now();
+    #endif //DEBUG && DEBUG_TIMING
 
-        path[i] = best_pin_for(path[i-1], score, DEPTH);
-        update_scores(path[i], path[i-1]);
-        #if defined (DEBUG) && defined(DEBUG_PATH_STEPS)
-            po.update_progress(i+1);
-            po.set_int("Step", i);
-            po.set_flt("Score", score, 2);
-            #ifdef DEBUG_TIMING
-                auto stop = high_resolution_clock::now();
-                float step_time = duration_cast<microseconds>(stop - start).count() / 1000000.f;
-                runtime_seconds += step_time;
-                last_10_sps.push_front(1.0f / step_time);
-                if(i > 10) last_10_sps.pop_back();
-                po.set_flt("Cur Steps Per Second",  last_10_sps.back(), 2);
-                po.set_flt("Avg Steps Per Second", (i / runtime_seconds));
-                po.set_flt("Local Avg Steps Per Second", std::accumulate(last_10_sps.begin(), last_10_sps.end(),0.0f) / last_10_sps.size(), 2);
-                po.set_percent("\% Time Updating",  update_time / step_time, 1, true);
-                po.set_percent("\% Time Getting Score", getscore_time / step_time, 1, true);
-                po.set_percent("\% Other", 1.f - (getscore_time + update_time)/step_time, 1, true);
-            #endif
-            std::cout << po.to_string();
-        #endif
+            path[step] = best_pin_for(path[step - 1], score, score_depth);
+
+    #if defined(DEBUG) && defined(DEBUG_TIMING)
+            auto stop_getscore = high_resolution_clock::now();
+            getscore_time = duration_cast<microseconds>(stop_getscore - start_getscore).count() / 1000000.f;
+            auto start_update = high_resolution_clock::now();
+    #endif //DEBUG && DEBUG_TIMINGs
+
+            update_scores(path[step], path[step - 1]);
+
+    #if defined(DEBUG) && defined(DEBUG_TIMING)
+            auto stop_update = high_resolution_clock::now();
+            update_time = duration_cast<microseconds>(stop_update - start_update).count() / 1000000.f;
+    #endif //DEBUG && DEBUG_TIMING
+
+    #if defined(DEBUG)
+            ai.set_flt("Score", score, 2);
+    #ifdef DEBUG_TIMING
+            auto stop = high_resolution_clock::now();
+            float step_time = duration_cast<microseconds>(stop - start).count() / 1000000.f;
+            runtime_seconds += step_time;
+            last_10_sps.push_front(1.0f / step_time);
+            if (step > 10)
+                last_10_sps.pop_back();
+            float last_10_avg = std::accumulate(last_10_sps.begin(), last_10_sps.end(), 0.0f) / last_10_sps.size();
+            int total_seconds_to = (path_steps - step) / (step/runtime_seconds);
+            int hours_to = total_seconds_to / 3600;
+            int minutes_to = (total_seconds_to - hours_to * 3600) / 60;
+            int seconds_to = total_seconds_to - hours_to * 3600 - minutes_to * 60;
+            ai.set_flt("Cur Steps Per Second", last_10_sps.back(), 2);
+            ai.set_percent("\% Updating", update_time / step_time, 1, true);
+            ai.set_percent("\% Getting Score", getscore_time / step_time, 1, true);
+            ai.set_percent("\% Other", 1.f - (getscore_time + update_time) / step_time, 1, true);
+            ai.set_flt("Avg Steps Per Second", (step / runtime_seconds), 2);
+            ai.set_flt("Local Avg Steps Per Second", last_10_avg, 2);
+            ai.set_flt("Darkness min", darkness_image.min(), 1, 3);
+            ai.set_flt("Darkness max", darkness_image.max(), 1, 3);
+            ai.set_str("Est. time to completion", (std::to_string(hours_to) + ":" + std::to_string(minutes_to) + ":" + std::to_string(seconds_to)).c_str());
+    #endif //DEBUG_TIMING
+            ai.set_progress("Progress", step + 1, path_steps);
+            std::cout << ai.to_string();
+    #endif //DEBUG
+        }
+        gen_done = true;
     }
-    #ifdef DEBUG_PATH_STEPS
-    std::cout << po.clear();
-    #endif
+    else //Display
+    {
+        while(!gen_done)
+        {
+            if(!dm.is_paused())
+            {
+                dm.update(ai.to_string(false).c_str(),true);
+                float wait_time = 1.f/30 - dm.spf();
+                if(wait_time > 0)
+                {
+                    dm.wait(wait_time);
+                }
+            }
+            else
+            {
+                dm.update_input();
+                dm.wait(1.f/30);
+            }
+        }
+    }
+    } //#PRAGMA
+#ifdef DEBUG
+    std::cout << ai.end_string();
+    ai.clear();
+#endif //DEBUG
     return path;
 }
 
 template <class IMG_TYPE>
-bool string_art<IMG_TYPE>::save_string_image(const char* image_file, const bool append_debug_info)
+bool string_art<IMG_TYPE>::save_string_image(const char *image_file, const bool append_debug_info)
 {
-    tcimg save_img = (255 - string_image.get_normalize(0,255));
-    if(append_debug_info) save_img.append((SCORE_RESOLUTION - darkness_image)/((float)SCORE_RESOLUTION / 255));
-    save_img.save(image_file);
+    tcimg save_img = (255 - string_image.get_normalize(0, 255));
+    if (append_debug_info)
+    {
+        tcimg dark_img = (SCORE_RESOLUTION - darkness_image) / ((float)SCORE_RESOLUTION/255.f);
+        save_img.append(dark_img).save(image_file);
+    }
+    else
+    {
+        save_img.save(image_file);
+    }
     return true;
 }
-
+#if defined(DEBUG) && defined(DEBUG_SCORING)
+template <class IMG_TYPE>
+void string_art<IMG_TYPE>::debug_show_all_connections()
+{
+    /*
+    bool show_overlay = false;
+    short pin_a = 0;
+    const IMG_TYPE *text_color = white;
+    const IMG_TYPE *bg_color = black;
+    const tcimg overlay = (darkness_image).get_resize(1024,1024).normalize(0,255);
+    do
+    {
+        scoord local_pin_a = pins[pin_a] * cd_scale_mult;
+        cimg_forC(cd_image, c)
+        {
+            if(show_overlay)
+            {
+                cd_image.get_shared_channel(c) = overlay;
+            }
+            else
+            {
+                cd_image.get_shared_channel(c).fill(bg_color[c]);
+            }
+        }
+        
+        for(auto b : line_scores_by_pin[pin_a])
+        {
+            scoord local_pin_b = pins[b.first]*cd_scale_mult;
+            IMG_TYPE score_gray = (255 * *b.second) / SCORE_RESOLUTION;
+            const IMG_TYPE score_color[3]{score_gray, score_gray, score_gray};
+            std::stringstream score_text;
+            score_text << std::fixed << std::setprecision(1) << 255 * (*b.second / SCORE_RESOLUTION);
+            draw_line_RGB(cd_image, local_pin_a, local_pin_b,score_color);
+            cd_image.draw_text(local_pin_b.x, local_pin_b.y, score_text.str().c_str(), text_color, bg_color, 1, 8);
+        }
+        cd -> display(cd_image);
+        switch(cd -> key())
+        {
+            case back_key:
+                pin_a = (pin_count + pin_a -1) % pin_count;
+                break;
+            case advance_key:
+                pin_a = (pin_a + 1) % pin_count;
+                break;
+            case pause_key:
+                show_overlay = !show_overlay;
+                break;
+            case escape_key:
+                //cd -> close();
+                break;
+            default:
+                break;
+        }
+        //Clear key buffer
+        cd -> set_key();
+    }while(!cd -> is_closed());
+    */
+}
+#endif 
 template <class IMG_TYPE>
 short string_art<IMG_TYPE>::best_pin()
 {
     IMG_TYPE best_score = 0;
     short best_pin_a = -1;
     short best_pin_b = -1;
-    IMG_TYPE cur_score = 0;
     IMG_TYPE avg_a = 0, avg_b = 0;
-    for(int i=0; i < line_count; i++)
+    for (int i = 0; i < line_count; i++)
     {
-        if(line_pairs[i] != -1)
+        if (line_pairs[i].x >= 0)
         {
-            cur_score = *line_scores_by_pin[line_pairs[i].x][line_pairs[i].y];
-            if(cur_score > best_score)
+            IMG_TYPE cur_score = *line_scores_by_pin[line_pairs[i].x][line_pairs[i].y];
+            if (cur_score > best_score)
             {
                 best_score = cur_score;
                 best_pin_a = line_pairs[i].x;
@@ -128,150 +258,201 @@ short string_art<IMG_TYPE>::best_pin()
     }
     assert(best_pin_a != -1);
 
-    best_pin_for(best_pin_a, avg_a, DEPTH);
-    best_pin_for(best_pin_b, avg_b, DEPTH);
-    if(avg_a > avg_b) 
-        return best_pin_a;
-    else 
-        return best_pin_b;
+    best_pin_for(best_pin_a, avg_a, score_depth);
+    best_pin_for(best_pin_b, avg_b, score_depth);
+    return (avg_a > avg_b) ? best_pin_a : best_pin_b;
 }
 
 template <class IMG_TYPE>
-short string_art<IMG_TYPE>::best_pin_for(short from_pin, IMG_TYPE& score, short depth)
+short string_art<IMG_TYPE>::best_pin_for(short from_pin, IMG_TYPE &score, short depth)
 {
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
-        auto start = high_resolution_clock::now();
-    #endif
+
     short to_pin = 0;
     vector<short> visited{from_pin};
     score = best_score_for(from_pin, depth, to_pin, visited);
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
-        auto stop = high_resolution_clock::now();
-        getscore_time = duration_cast<microseconds>(stop - start).count() / 1000000.f;
-    #endif
+
     return to_pin;
 }
 
-template <class IMG_TYPE>    
+template <class IMG_TYPE>
 void string_art<IMG_TYPE>::score_all_lines()
 {
     vector<int> to_cull;
-    for(int i=0; i < line_count; i++)
+    for (int i = 0; i < line_count; i++)
     {
-        *line_scores_by_pin[line_pairs[i].x][line_pairs[i].y] = initial_score(line_pairs[i].x,line_pairs[i].y);
-        if(*line_scores_by_pin[line_pairs[i].x][line_pairs[i].y] < SCORE_RESOLUTION * 0.01f)
+        *line_scores_by_pin[line_pairs[i].x][line_pairs[i].y] = initial_score(line_pairs[i].x, line_pairs[i].y);
+        ai.set_int("Line", i);
+        ai.set_flt("Score", *line_scores_by_pin[line_pairs[i].x][line_pairs[i].y], 1);
+        ai.set_progress("Progress", i, line_count);
+        if (*line_scores_by_pin[line_pairs[i].x][line_pairs[i].y] < SCORE_RESOLUTION * 0.01f)
         {
             to_cull.push_back(i);
         }
+        std::cout << ai.to_string();
     }
-    for(int c : to_cull)
+    std::cout << ai.end_string();
+    ai.clear();
+    /*
+    for (int c : to_cull)
     {
         cull_line(c);
-    }
+    }*/
+    
     return;
 }
 
 template <class IMG_TYPE>
-void string_art<IMG_TYPE>::update_scores(short pin_a, short pin_b)
+void string_art<IMG_TYPE>::update_scores(const short pin_a,const short pin_b)
 {
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
-        auto start = high_resolution_clock::now();
+    /*
+    #if defined(DEBUG) && defined(DEBUG_OVERLAP)
+        cd_image.fill(0);
     #endif
-    scoord cur_coord;
+    */
     old_string_image.assign(string_image);
     draw_line(string_image, pin_a, pin_b, SCORE_RESOLUTION);
-    const short min_pin = min(pin_a,pin_b);
-    const short max_pin = max(pin_a,pin_b);
-    #pragma omp parallel for
-    for(int i=0; i < line_count; i++)
+    const short min_pin = min(pin_a, pin_b);
+    const short max_pin = max(pin_a, pin_b);
+
+    //#pragma omp parallel for
+    for (int i = 0; i < line_count; i++)
     {
-        if(line_pairs[i].x != -1)
+        if (line_pairs[i].y >= 0)
         {
-            if((line_pairs[i].x < min_pin && line_pairs[i].y > min_pin && line_pairs[i].y < max_pin) ||
-            (line_pairs[i].x > min_pin && line_pairs[i].x < max_pin && line_pairs[i].y > max_pin))
+            if ((line_pairs[i].x < min_pin && line_pairs[i].y > min_pin && line_pairs[i].y < max_pin) ||
+                (line_pairs[i].x > min_pin && line_pairs[i].x < max_pin && line_pairs[i].y > max_pin))
             {
                 update_score(line_pairs[i].x, line_pairs[i].y, pin_a, pin_b, old_string_image, string_image);
             }
         }
     }
-    if((score_method == 0) || (score_method == 2))
+    switch(score_method)
     {
-        darken_line(darkness_image, pin_a, pin_b);
+        case 0:
+        case 2:
+        default:
+            darken_line(darkness_image, pin_a, pin_b);
+            break;
+        case 1:
+            break;
     }
+
     *line_scores_by_pin[pin_a][pin_b] = 0;
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
-        auto stop = high_resolution_clock::now();
-        update_time = duration_cast<microseconds>(stop - start).count() / 1000000.f;
-    #endif
+
 }
 
 template <class IMG_TYPE>
-IMG_TYPE string_art<IMG_TYPE>::update_score(const short scored_a, const short scored_b, const short overlap_a, const short overlap_b, tcimg& old_string_image, tcimg& new_string_image)
+IMG_TYPE string_art<IMG_TYPE>::update_score(const short scored_a, const short scored_b, const short overlap_a, const short overlap_b, tcimg &old_string_image, tcimg &new_string_image)
 {
     float line_length = line_lengths[scored_a][scored_b];
-    float new_score;
-    float cur_score;
-    float local_length = 0;
-    switch(score_method)
+    float new_score = 0;
+    if(line_length == 0) return *line_scores_by_pin[scored_a][scored_b];
+
+    switch (score_method)
     {
-        case 0: default:
+    case 0:
+    default:
+    {
+        line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
+        if(darkness_image(lii.get_center().x, lii.get_center().y) == 0) return *line_scores_by_pin[scored_a][scored_b];
+        new_score = ((float)*line_scores_by_pin[scored_a][scored_b]) * line_length;
+        do
         {
-            line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
-
-            new_score = ((long)*line_scores_by_pin[scored_a][scored_b]) * line_length;
-            do
+            if(lii.is_within_itersection())
             {
-                cur_score = lii.get();
-                if(cur_score > 0.01f)
+                float cur_score = lii.get();
+                float left_score = darkness_image(lii.left().x, lii.left().y);
+                float right_score = darkness_image(lii.right().x, lii.right().y);
+                float total_add = 0;
+                float total_remove = 0;
+                if (cur_score > 0.01f)
                 {
-                    new_score -= cur_score;
-                    new_score += cur_score * score_modifier;   
-                    local_length ++;     
-                }        
-            }while(lii.step());
-            new_score /= line_length;
-            break;
-        }
-        case 1: 
-        {
-            line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
+                    total_remove += cur_score;
+                    total_add += cur_score * score_modifier;                    
+                }
+                if (left_score> 0.01f)
+                {
+                    total_remove += left_score * wg_neighbor;
+                    total_add  += left_score * score_modifier * wg_neighbor;
+                }
+                if (right_score > 0.01f)
+                {
+                    total_remove += right_score * wg_neighbor;
+                    total_add += right_score * score_modifier * wg_neighbor;
+                }
+                new_score += total_add;
+                new_score -= total_remove;
+            }
+        } while (lii.step());
+        new_score /= line_length;
+        break;
+    }
+    case 1:
+    {
+        line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
+        if(darkness_image(lii.get_center().x, lii.get_center().y) == 0) return *line_scores_by_pin[scored_a][scored_b];
 
-            std::deque<scoord> line_coords(3);
-            new_score = ((long)*line_scores_by_pin[scored_a][scored_b]) * line_length;
-            //Assign the first three pixels in the line
-            line_coords[0] = lii.cur_coord();
-            lii.step();
-            line_coords[1] = lii.cur_coord();
-            lii.step();
-            line_coords[2] = lii.cur_coord();
-            //Iterate through the rest of the line
-            do
+        std::deque<scoord> line_coords(3);
+        new_score = ((float)*line_scores_by_pin[scored_a][scored_b]) * line_length;
+        // Assign the first three pixels in the line
+        line_coords[0] = lii.cur_coord();
+        lii.step();
+        line_coords[1] = lii.cur_coord();
+        lii.step();
+        line_coords[2] = lii.cur_coord();
+        // Iterate through the rest of the line
+        do
+        {
+            float cur_score =  score_square(new_string_image, line_coords);
+            if(cur_score != 0)
             {
                 new_score -= score_square(old_string_image, line_coords);
-                new_score += score_square(new_string_image, line_coords);
-                line_coords.pop_front();
-                line_coords.push_back(lii.cur_coord());
-            }while(lii.step());
-            new_score /= line_length;
-            break;
-        }
-        case 2: //Root mean square error
-            line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
-
-            new_score = pow(*line_scores_by_pin[scored_a][scored_b],2) *  line_length;
-            do
-            {
-                cur_score = lii.get();
-                if(cur_score != 0)
-                {
-                    local_length++;
-                    new_score -= pow(cur_score,2);
-                    new_score += pow(cur_score * score_modifier,2);
-                }
-            }while(lii.step());
-            new_score = sqrt(new_score / line_length);
-            break;
+                new_score += cur_score;
+            }
+            line_coords.pop_front();
+            line_coords.push_back(lii.cur_coord());
+        } while (lii.step());
+        new_score /= line_length;
+        break;
     }
+    case 2: // Root mean square error
+    { 
+        line_intersection_iterator<IMG_TYPE> lii(darkness_image, pins[scored_a], pins[scored_b], pins[overlap_a], pins[overlap_b], 3);
+        if(darkness_image(lii.get_center().x, lii.get_center().y) == 0) return *line_scores_by_pin[scored_a][scored_b];
+
+        new_score = pow(*line_scores_by_pin[scored_a][scored_b], 2) * line_length;
+        do
+        {
+            if(lii.is_within_itersection())
+            {                
+                float cur_score = lii.get();
+                float left_score = darkness_image(lii.left().x, lii.left().y);
+                float right_score = darkness_image(lii.right().x, lii.right().y);
+                float total_add = 0;
+                float total_remove = 0;
+                if (cur_score > 0.1f)
+                {
+                    total_remove += pow(cur_score, 2);
+                    total_add += pow(cur_score * score_modifier, 2);
+                }
+                if(left_score > 0.1f)
+                {
+                    total_remove += pow(left_score, 2) * wg_neighbor;
+                    total_add += pow(left_score * score_modifier, 2) * wg_neighbor;
+                }
+                if(right_score > 0.1f)
+                {
+                    total_remove += pow(right_score, 2) * wg_neighbor;
+                    total_add += pow(right_score * score_modifier, 2) * wg_neighbor;
+                }
+                new_score += total_add;
+                new_score -= total_remove;
+            }
+        } while (lii.step());
+        new_score = sqrt(new_score / line_length);
+        break;
+    }
+    } //switch(score_method)
     *line_scores_by_pin[scored_a][scored_b] = (IMG_TYPE)new_score;
     return new_score;
 }
@@ -279,20 +460,19 @@ IMG_TYPE string_art<IMG_TYPE>::update_score(const short scored_a, const short sc
 template <class IMG_TYPE>
 void string_art<IMG_TYPE>::build_lines(short min_separation)
 {
-    int b_start = 0, b_end = 0;
     line_scores = new IMG_TYPE[line_count];
     line_pairs = new scoord[line_count];
     int i = 0;
     for (short a = 0; a < pin_count; a++)
     {
-        b_start = (a + min_separation);
-        b_end = min(pin_count, (short)((pin_count + a - min_separation)+1));
+        int b_start = (a + min_separation);
+        int b_end = min(pin_count, (short)((pin_count + a - min_separation) + 1));
         for (short b = b_start; b < b_end; b++)
         {
             line_scores[i] = 0;
             line_scores_by_pin[a][b] = &(line_scores[i]);
             line_scores_by_pin[b][a] = line_scores_by_pin[a][b];
-            
+
             line_pairs[i].x = a;
             line_pairs[i].y = b;
             i++;
@@ -304,16 +484,16 @@ template <class IMG_TYPE>
 vector<coord<short>> string_art<IMG_TYPE>::overlapping_lines(short pin_a, short pin_b)
 {
     vector<scoord> lines;
-    short min_pin = min(pin_a,pin_b);
-    short max_pin = max(pin_a,pin_b);
-    for(int i=0; i < line_count; i++)
+    short min_pin = min(pin_a, pin_b);
+    short max_pin = max(pin_a, pin_b);
+    for (int i = 0; i < line_count; i++)
     {
-        if(line_pairs[i].x != -1)
+        if (line_pairs[i].x >= 0)
         {
-            if((line_pairs[i].x < min_pin && line_pairs[i].y > min_pin && line_pairs[i].y < max_pin) ||
-            (line_pairs[i].x > min_pin && line_pairs[i].x < max_pin && line_pairs[i].y > max_pin))
+            if ((line_pairs[i].x < min_pin && line_pairs[i].y > min_pin && line_pairs[i].y < max_pin) ||
+                (line_pairs[i].x > min_pin && line_pairs[i].x < max_pin && line_pairs[i].y > max_pin))
             {
-                    lines.push_back(line_pairs[i]);
+                lines.push_back(line_pairs[i]);
             }
         }
     }
@@ -321,118 +501,81 @@ vector<coord<short>> string_art<IMG_TYPE>::overlapping_lines(short pin_a, short 
 }
 
 template <class IMG_TYPE>
-std::string string_art<IMG_TYPE>::ASCII_line(const short from_pin,const short to_pin,const short resolution)
-{
-    std::string text = "";
-    cimg_library::CImg<u_char> line_map(resolution, (darkness_image.height() * resolution) / darkness_image.width(), 1, 1, false);
-    scoord scaled_from_pin = ((coord<int>)pins[from_pin] * resolution) / darkness_image.width();
-    scoord scaled_to_pin   = ((coord<int>)pins[to_pin]   * resolution) / darkness_image.width();
-    line_iterator<u_char> li(line_map, scaled_from_pin, scaled_to_pin, false);
-    scoord cur_coord;
-    const std::string red = "\033[31m";
-    const std::string blue = "\033[34m";
-    const std::string green = "\033[32m";
-    const std::string cclose = "\033[0m";
-    float r = (float)(pins[0].x - darkness_image.width()/2) / (darkness_image.width()/2);
-    float max_da = abs(atan2(resolution/2-1,resolution/2) - atan2(resolution/2,resolution/2-1));
-    int x, y;
-    for(float a = 0; a < 2 * M_PI; a += max_da)
-    {
-        x = cos(a) * r * line_map.width()/2  + line_map.width()/2;
-        y = sin(a) * r * line_map.height()/2 + line_map.height()/2;
-        line_map(x,y) = 1;
-    }
-    
-    do
-    {
-        li.set(2);
-    }while(li.step());
-    line_map(scaled_from_pin.x,scaled_from_pin.y) = 3;
-    line_map(scaled_to_pin.x  ,scaled_to_pin.y) = 4;
-    for(short y = line_map.height()-1; y >= 0; y--)
-    {
-        for(short x = 0; x < line_map.width(); x++)
-        {
-            switch(line_map(x,y))
-            {
-                case 0:
-                    text += "  ";
-                    break;
-                case 1:
-                    text += "* ";
-                    break;
-                case 2:
-                    text += blue + "* " + cclose;
-                    break;
-                case 3:
-                    text += green + "S " + cclose;
-                    break;
-                case 4:
-                    text += red + "E " + cclose;
-                    break;
-            }
-        }
-        text += '\n';
-    }
-    return text;
-}
-
-template <class IMG_TYPE>
 IMG_TYPE string_art<IMG_TYPE>::initial_score(const short pin_a, const short pin_b)
 {
-    float cur_score = 0;
     float score = 0;
-    line_iterator<IMG_TYPE> li(darkness_image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, false);
+    line_iterator<IMG_TYPE> li(darkness_image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, false, 3);
     float masked_length = 0;
-    switch(score_method)
+    switch (score_method)
     {
-        case 0: default:
+    case 0:
+    default:
+    {
+        do
         {
-            do
+            float cur_score = li.get();
+            float left_score = darkness_image(li.left().x,li.left().y);
+            float right_score = darkness_image(li.right().x,li.right().y);
+            float total_add = 0;
+            if (cur_score > 0)
             {
-                cur_score = li.get();
-                if(cur_score != 0)
-                {
-                    score += cur_score;
-                    masked_length ++;
-                }
-            } while (li.step());
-            score /= masked_length;
-            break;
-        }
-        case 1:
+                total_add += cur_score;
+                masked_length++;
+            }
+            if (left_score > 0)
+            {
+                total_add += left_score * wg_neighbor;
+                masked_length += wg_neighbor;
+            }
+            if (right_score > 0)
+            {
+                total_add += right_score * wg_neighbor;
+                masked_length += wg_neighbor;
+            }
+            score += total_add;
+        } while (li.step());
+        if(masked_length > 0) score /= masked_length;
+        break;
+    }
+    case 1:
+    {
+
+        std::deque<scoord> line_coords(3);
+        scoord bot_left, top_right;
+        line_coords[0] = li.cur_coord();
+        li.step();
+        line_coords[1] = li.cur_coord();
+        li.step();
+        line_coords[2] = li.cur_coord();
+        while (li.step())
         {
-            std::deque<scoord> line_coords(3);
-            coord bot_left, top_right;
-            line_coords[0] = li.cur_coord();
-            li.step();
-            line_coords[1] = li.cur_coord();
-            li.step();
-            line_coords[2] = li.cur_coord();
-            while(li.step())
+            IMG_TYPE cur_val = li.get();
+            if(cur_val > 0)
             {
                 score += score_square(string_image, line_coords);
-                masked_length ++;
+                masked_length++;
                 line_coords.pop_front();
                 line_coords.push_back(li.cur_coord());
-            } 
-            score /= masked_length;
-            break;
+            }
         }
-        case 2: //RMSE
+        //if(score < 0) score = 0;
+        if(masked_length > 0) score /= masked_length;
+        break;
+    }
+    case 2: // RMSE
+    {
+        do
         {
-            do
+            float cur_score = li.get();
+            if (cur_score != 0)
             {
-                cur_score = li.get();
-                if(cur_score != 0)
-                {
-                    score += pow(cur_score,2);
-                    masked_length ++;
-                }
-            } while (li.step());
-            score = sqrt(score / masked_length);
-            break;
-        }
+                score += pow(cur_score, 2);
+                masked_length++;
+            }
+        } while (li.step());
+        if(masked_length > 0) score = sqrt(score / masked_length);
+        break;
+    }
     }
     line_lengths[pin_a][pin_b] = masked_length;
     line_lengths[pin_b][pin_a] = masked_length;
@@ -440,55 +583,120 @@ IMG_TYPE string_art<IMG_TYPE>::initial_score(const short pin_a, const short pin_
 }
 
 template <class IMG_TYPE>
-IMG_TYPE string_art<IMG_TYPE>::score_square(const tcimg& string_image_ref, std::deque<scoord>& line_coords) const
+IMG_TYPE string_art<IMG_TYPE>::score_square(const tcimg &string_image_ref, std::deque<scoord> &line_coords)
 {
     scoord bot_left, top_right, cur_coord;
-    int img_sum = 0;
-    int line_sum = 0;
-    int new_line_sum = 0;
-    int square_area = 9;
+    float img_sum = 0;
+    float line_sum = 0;
+    float new_line_sum = 0;
+    short square_area = 0;
     bot_left.x = line_coords[1].x - 1;
     bot_left.y = line_coords[1].y - 1;
     top_right.x = line_coords[1].x + 1;
     top_right.y = line_coords[1].y + 1;
-    for(cur_coord.x = bot_left.x; cur_coord.x <= top_right.x; cur_coord.x++)
+
+    
+    for (cur_coord.x = bot_left.x; cur_coord.x <= top_right.x; cur_coord.x++)
     {
-        for(cur_coord.y = bot_left.y; cur_coord.y <=  top_right.y; cur_coord.y++)
+        for (cur_coord.y = bot_left.y; cur_coord.y <= top_right.y; cur_coord.y++)
         {
-            img_sum += darkness_image(cur_coord.x, cur_coord.y);
-            //Add to the string score if the point is on the string map, or if it's in the given list of coords.
-            if(string_image_ref(cur_coord.x, cur_coord.y))
+            IMG_TYPE cur_val = darkness_image(cur_coord.x, cur_coord.y);
+            if(cur_val > 0)
             {
-                line_sum += SCORE_RESOLUTION;
-            }
-            else
-            {
-                for(scoord c : line_coords)
+                ++square_area;
+                img_sum += cur_val;
+                // Add to the string score if the point is on the string map, or if it's in the given list of coords.
+                if (string_image_ref(cur_coord.x, cur_coord.y) > 0)
                 {
-                    if(c == cur_coord)
+                    line_sum += SCORE_RESOLUTION;
+                    /*
+                    #if defined(DEBUG) && defined(DEBUG_SCORING)
+                    if(show_pixel_scoring)
                     {
-                        new_line_sum += SCORE_RESOLUTION;
-                        break;
+                        cd_image.draw_point(cur_coord.x * cd_scale_mult, cur_coord.y * cd_scale_mult,red);
                     }
+                    #endif
+                    */
+                }
+                else if (std::find(line_coords.begin(), line_coords.end(), cur_coord) != line_coords.end())
+                {
+                    new_line_sum += SCORE_RESOLUTION;
+                    /*
+                    #if defined(DEBUG) && defined(DEBUG_SCORING)
+                    if(show_pixel_scoring)
+                    {
+                        cd_image.draw_point(cur_coord.x * cd_scale_mult, cur_coord.y * cd_scale_mult,blue);
+                    }
+                    #endif
+                    */
                 }
             }
         }
     }
-    //The average value of the image in this square
-    int image_score = img_sum / square_area;
-    //The difference of the string img (before the current line) and the image (small = good)
-    int existing_score = abs((line_sum / square_area) - image_score);
-    //The difference of the string img (after the current line) and the image (small = good)
-    int potential_score = abs((line_sum+new_line_sum)/square_area - image_score);
-    //The improvement in similarity after adding a line (big = good)
-    int score = existing_score - potential_score;
-    return score + SCORE_RESOLUTION; //just avoiding negatives here.
+    if(square_area == 0) return 0;
+    // Average value of the image in this square
+    float image_score = img_sum / square_area;
+    // Average value of the existing string image
+    float existing_score = line_sum / square_area;
+    // Average value with the new line added
+    float potential_score = (line_sum + new_line_sum) / square_area;
+    
+    float existing_diff = image_score - existing_score;
+    float potential_diff = image_score - potential_score;
+    // Percent similarity of potential (100% = same, 0% = white to black)
+    float potential_p_similarity = (1.f - (potential_diff / SCORE_RESOLUTION));
+    // Potential reduction in image difference (negative if potential is worse)
+    float score = (existing_diff > 0) ? existing_diff - abs(potential_diff) : potential_diff - existing_diff;
+    score *= potential_p_similarity;
+    /*
+    #if defined(DEBUG) && defined(DEBUG_SCORING)
+    {
+        bool stay = show_pixel_scoring;
+        while(stay)
+        {
+            if(zoom_pixel_scoring)
+            {
+                cd -> display(cd_image.get_crop(bot_left.x - 2, bot_left.y - 2, top_right.x + 2, top_right.y + 2).resize(1024,1024));
+            }
+            else
+            {
+                cd -> display(cd_image);
+            }
+            const uint key = cd -> key();
+            switch(key)
+            {
+                case pause_key:
+                    step_manual = !step_manual;
+                    break;
+                case zoom_key:
+                    zoom_pixel_scoring = !zoom_pixel_scoring;
+                    break;
+                case advance_key:
+                    stay = false;
+                    break;
+                case escape_key:
+                    show_pixel_scoring = false;
+                    break;
+                default:
+                    break;
+            }
+            cd -> set_key();
+            stay &= step_manual;
+            if(stay)
+            {
+                cd -> wait();
+            }
+        }
+    }
+    #endif //DEBUG
+    */
+    return score;
 }
 
 template <class IMG_TYPE>
-void string_art<IMG_TYPE>::darken_line(tcimg& image, const short pin_a,const short pin_b)
+void string_art<IMG_TYPE>::darken_line(tcimg &image, const short pin_a, const short pin_b)
 {
-    line_iterator<IMG_TYPE> li(image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, true);
+    line_iterator<IMG_TYPE> li(image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, true, 3);
     do
     {
         li.set(li.get() * score_modifier);
@@ -496,79 +704,149 @@ void string_art<IMG_TYPE>::darken_line(tcimg& image, const short pin_a,const sho
     return;
 }
 
+
 template <class IMG_TYPE>
-void string_art<IMG_TYPE>::draw_line(tcimg& image, short pin_a, short pin_b, IMG_TYPE color)
+void string_art<IMG_TYPE>::draw_line(tcimg &image, const short pin_a, const short pin_b, const IMG_TYPE color)
 {
-    line_iterator<IMG_TYPE> li(image, pins[pin_a].x, pins[pin_a].y, pins[pin_b].x, pins[pin_b].y, false);
-    do{
-        li.set(color);
-    } while (li.step());
-    return;
+    image_editing::draw_line<IMG_TYPE>(image, pins[pin_a], pins[pin_b], color);
 }
+
+
+template <class IMG_TYPE>
+void string_art<IMG_TYPE>::draw_line_RGB(tcimg &image, const scoord line_a, const scoord line_b, const IMG_TYPE* color)
+{
+    if(image.spectrum() < 3) 
+    {
+        throw std::domain_error("Not enough channels for an RGB image (Spectrum = " + std::to_string(image.spectrum()) + ")");
+    }
+    line_iterator<IMG_TYPE> li(image, line_a.x, line_a.y, line_b.x, line_b.y, false);
+    do
+    {
+        for(int c = 0; c < 3; c++)
+        {
+            image(li.cur_coord().x, li.cur_coord().y, 0, c) = color[c];
+        }
+    } while (li.step());
+}
+
 
 template <class IMG_TYPE>
 void string_art<IMG_TYPE>::cull_line(const int line_index)
 {
     line_scores_by_pin[line_pairs[line_index].x].erase(line_pairs[line_index].y);
     line_scores_by_pin[line_pairs[line_index].y].erase(line_pairs[line_index].x);
+    line_lengths[line_pairs[line_index].x].erase(line_pairs[line_index].y);
+    line_lengths[line_pairs[line_index].y].erase(line_pairs[line_index].x);
+    line_pairs[line_index].x = -1;
     line_pairs[line_index].y = -1;
-
 }
 
-
-//Return the best-scoring next pin.
 template <class IMG_TYPE>
-IMG_TYPE string_art<IMG_TYPE>::best_score_for(short from_pin, short depth, short& to_pin, vector<short>& visited)
+IMG_TYPE string_art<IMG_TYPE>::best_score_for(short from_pin, short depth, short &to_pin, vector<short> &visited)
 {
-    if(depth == 0) return 0;
+    if (depth == 0)
+        return 0;
     short best_pin = -1;
     IMG_TYPE best_score = 0;
-    IMG_TYPE cur_score  = 0;
-    
-    for(auto b : line_scores_by_pin[from_pin])
-    {   
-        for(short v : visited)
+
+    for (auto b : line_scores_by_pin[from_pin])
+    {
+        short cur_pin = b.first;
+        IMG_TYPE cur_score = *b.second;
+        for (short v : visited)
         {
-            if(b.first == v) continue;
+            if (to_pin == v)
+                continue;
         }
-        if(*b.second > 0)
+        if (cur_score != 0)
         {
-            visited.push_back(b.first);
-            cur_score = *(b.second) + best_score_for(b.first, depth-1, to_pin, visited);
+            visited.push_back(to_pin);
+            cur_score += best_score_for(to_pin, depth - 1, to_pin, visited);
             visited.pop_back();
-            if(cur_score > best_score)
+            if (cur_score > best_score)
             {
-                best_pin = b.first;
+                best_pin = cur_pin;
                 best_score = cur_score;
             }
         }
     }
-    //If no suitable neighbor was found, return the nearest neighbor
-    if(best_pin == -1)
+    // If no suitable neighbor was found, return the nearest neighbor
+    if (best_pin == -1)
     {
-        auto b = line_scores_by_pin[from_pin].begin();
-        while(b -> first < from_pin && b != line_scores_by_pin[from_pin].end()) ++b;
-        if(b == line_scores_by_pin[from_pin].end()) --b;
-        best_pin = b -> first;
+        for(short i = from_pin + 1; i != from_pin; i = (i+1) % pin_count)
+        {
+            auto b = line_scores_by_pin[from_pin].find(i);
+            if(b != line_scores_by_pin[from_pin].end())
+            {
+                best_pin = i;
+                break;
+            }
+        }
+        assert(best_pin != -1);
+
     }
     to_pin = best_pin;
     return best_score;
 }
 
 template <typename IMG_TYPE>
-coord<short>* string_art<IMG_TYPE>::circular_pins(const tcimg& image, float radius, short pin_count)
+CImgList<u_short> string_art<IMG_TYPE>::map_lines_to_slices()
 {
-    float angle;
+    CImgList<u_short> slices;
+    int lines_drawn = 0;
+    map<short,map<short,bool>> pairs_made;
+    for(short p_origin = 0; p_origin < pin_count; p_origin += 2)
+    {
+        CImg<u_short> slice(darkness_image.width(), darkness_image.height(), 1, 1, 0);
+        int local_lines_drawn = 0;
+        for(int offset = 0; offset < pin_count; offset++)
+        {
+            short p_a = (p_origin - (offset/2) + pin_count) % pin_count;
+            short p_b = (p_origin + (offset/2) + (offset%2)) % pin_count;
+            auto sub_a = line_scores_by_pin[p_a];
+            auto sub_b = sub_a.find(p_b);
+            if(sub_b != sub_a.end())
+            {
+                if(pairs_made[p_a].find(p_b) != pairs_made[p_a].end())
+                {
+                    std::cout << ((offset%2)?'E':'O') << "-offset pair " << p_a << "->" << p_b << " already made.\n";
+                }
+                else
+                {
+                    u_short pair_index = lines_drawn;
+                    image_editing::draw_line<u_short>(slice, pins[p_a], pins[p_b], pair_index, 2);
+                    pairs_made[p_a][p_b] = true;
+                    pairs_made[p_b][p_a] = true;
+                    lines_drawn++;
+                    local_lines_drawn++;
+                }
+            }
+        }
+        slices.push_back(slice);
+    }
+    assert(lines_drawn == line_count);
+    for(int i=0; i < line_count; i++)
+    {
+        assert(pairs_made.find(line_pairs[i].x) != pairs_made.end());
+        assert(pairs_made[line_pairs[i].x].find(line_pairs[i].y) != pairs_made[line_pairs[i].x].end());
+    }
+    return slices;
+}
+
+template <typename IMG_TYPE>
+coord<short> *string_art<IMG_TYPE>::circular_pins(const tcimg &image, float radius, short pin_count)
+{
     scoord *pins = new scoord[pin_count];
-    scoord center(image.width()/2, image.height()/2);
+    scoord center(image.width() / 2, image.height() / 2);
     for (int i = 0; i < pin_count; i++)
     {
-        angle = (2.f * 3.14159f * i) / pin_count;
-        pins[i].x = center.x + std::cos(angle) * radius * image.width() /2;
-        pins[i].y = center.y + std::sin(angle) * radius * image.height()/2;
+        float angle = (2.f * 3.14159f * i) / pin_count;
+        pins[i].x = center.x + std::cos(angle) * radius * image.width() / 2;
+        pins[i].y = center.y + std::sin(angle) * radius * image.height() / 2;
     }
     return pins;
 }
+
 
 /**
  * @details  If you map the possible connections on a 2D grid, they can be re-organized into a rectangle and a triangle.
@@ -580,42 +858,106 @@ coord<short>* string_art<IMG_TYPE>::circular_pins(const tcimg& image, float radi
  * \f}
  */
 template <typename IMG_TYPE>
-short string_art<IMG_TYPE>::calculate_line_count(short pin_count, short min_separation)
+int string_art<IMG_TYPE>::calculate_line_count(int pin_count, int min_separation)
 {
-    return (pin_count*pin_count - 2*pin_count*min_separation + pin_count)/2;
+    return (pin_count * pin_count - 2 * pin_count * min_separation + pin_count) / 2;
 }
 
 template <typename IMG_TYPE>
-cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_rgb_image(const char* image_file, short resolution)
+CImg<IMG_TYPE> string_art<IMG_TYPE>::make_accessibility_map() 
+{
+    CImg<float> am (darkness_image.width(), darkness_image.height(), 1, 1, 0);
+    for(int i = 0; i < line_count; i++)
+    {
+        scoord p = line_pairs[i];
+        line_iterator<float> li(am, pins[p.x], pins[p.y], false, 3);
+        do
+        {
+            IMG_TYPE d = darkness_image(li.cur_coord().x, li.cur_coord().y);
+            if(d > SCORE_RESOLUTION*0.65f)
+            {
+                li.set(li.get()+1);
+            }
+            else if(d != 0)
+            {
+                li.set(1);
+            }
+        }while(li.step());
+        ai.set_progress("Progress", i+1, line_count);
+        std::cout << ai.to_string();
+    }
+
+    std::cout << ai.end_string();
+    ai.clear();
+    cimg_forXY(am, x, y)
+    {
+        am(x,y) = 1.f / (am(x,y)+1);
+    }
+    return am;
+}
+
+template <typename IMG_TYPE>
+CImg<IMG_TYPE> string_art<IMG_TYPE>::make_region_size_map()
+{
+    CImg<IMG_TYPE> image = image_analysis::sized_light_regions<IMG_TYPE>(darkness_image, (IMG_TYPE)(0.65f*SCORE_RESOLUTION), true);
+    
+    cimg_forXY(image, x, y)
+    {
+        if(image(x,y))
+            image(x,y) = 1.f / (image(x,y)+1);
+    }
+    
+    return image;
+}
+
+template <typename IMG_TYPE>
+cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_rgb_image(const char *image_file, short resolution)
 {
     tcimg rgb_image(image_file);
-    rgb_image.resize(resolution, resolution * rgb_image.width() / rgb_image.height(), 1, rgb_image.spectrum());    
+    rgb_image.resize(resolution, resolution * rgb_image.width() / rgb_image.height(), 1, rgb_image.spectrum());
 
     return rgb_image;
 }
 
 template <typename IMG_TYPE>
-cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tcimg& rgb_image)
+cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tcimg &rgb_image)
 {
-    tcimg b_w =255 - (0.299*rgb_image.get_shared_channel(0) + 
-                      0.587*rgb_image.get_shared_channel(1) + 
-                      0.114*rgb_image.get_shared_channel(2));
+    tcimg b_w = 255 - (0.299 * rgb_image.get_shared_channel(0) +
+                       0.587 * rgb_image.get_shared_channel(1) +
+                       0.114 * rgb_image.get_shared_channel(2));
+    tcimg mask;
     if(rgb_image.spectrum() == 4)
     {
-        cimg_forXY(b_w,x,y)
-        {
-            if(rgb_image(x,y,0,3) < 1)
-            {
-                b_w(x,y) = 0;
-            }
-        }
+        mask = rgb_image.get_channel(3).threshold(1.f);
     }
-
-    //Set bounds in some un-used pixels, so that normalizing doesn't stretch dark gray to black / light gray to white.
-    b_w[0] = 0;
-    b_w[1] = 255;
-    b_w.normalize(0,SCORE_RESOLUTION);
+    else
+    {
+        mask = tcimg(rgb_image.width(), rgb_image.height(), 1, 1, 1.f);
+    }
+    b_w.blur_median(1);
+    b_w.mul(mask);
+    CImg<float> hist = b_w.get_histogram(256);
+    int cut_threshold = 255;
+    float hist_percent = 0;
+    while(hist_percent < 0.1f)
+    {
+        hist_percent += hist[cut_threshold] / mask.size();
+        cut_threshold--;
+    }
+    b_w.cut(0,cut_threshold);
+    b_w.equalize(255, 1, cut_threshold);
+    b_w = (b_w + SCORE_RESOLUTION)/2.f;
+    b_w.mul(mask);
+    std::cout << "End min/max: " << b_w.min() << ',' << b_w.max() << '\n';
     return b_w;
+}
+
+template <typename IMG_TYPE>
+void string_art<IMG_TYPE>::weight_darkness_image()
+{
+    darkness_image.mul(1 + accessibility_map * wg_accessibility);
+    darkness_image.mul(1 + region_size_map * wg_localsize);
+
 }
 
 template class string_art<short>;

@@ -18,242 +18,85 @@ using std::max;
 using std::vector;
 using std::map;
 
-typedef map<int,   map<int, short>> linescore;
-typedef map<pair<short, short>, vector<int>> string_art;
 namespace image_analysis
 {
-   
-    struct score_update
-    {
-        int scored_a;
-        int scored_b;
-        int overlap_a;
-        int overlap_b;
-    };
-
-    void add_to_updates(int newline_a, int newline_b, linescore& line_scores, map<int, vector<score_update>>& to_update)
-    {
-        for(auto a = line_scores.begin(); a != line_scores.end(); a++)
-        {
-            for(auto b = a->second.begin(); b != a->second.end(); b++)
-            {
-                if ((a->first < newline_a && b->first < newline_b) || (a->first > newline_a && b->first > newline_b))
-                {
-                    to_update[a->first].push_back({a->first, b->first, newline_a, newline_b});
-                }
-            }
-        }
-    }
-
     template <typename T>
-    void score_pin_from_updates(CImg<T>& img, vector<score_update>& to_update, linemap& string_art, linescore& line_scores, float multiplier)
+    static CImg<int> sized_dark_regions(const CImg<T>& input_image,const T threshold, bool ignore_zeros = true)
     {
-        int cur_idx;
-        long new_score;
-        for(score_update su : to_update)
+        CImg<int> regions = input_image.get_threshold(threshold).label(false, 0, true);        
+        map<int, int> region_sizes;
+        region_sizes[-1] = 0;
+        cimg_forXY(regions, x, y)
         {
-            new_score = line_scores[su.scored_a][su.scored_b] * string_art[su.scored_a][su.scored_b].size();
-            set_intersection_iterator sti(string_art[su.scored_a][su.scored_b], string_art[su.overlap_a][su.overlap_b], img.width());
-            std::cout << "\tScoring line " << su.scored_a << ',' << su.scored_b << ", overlapped by " << su.overlap_a << ',' << su.overlap_b << '\n';
-            std::cout << "\tSoring line size: " << string_art[su.scored_a][su.scored_b].size() << ", overlap size: " << string_art[su.overlap_a][su.overlap_b].size() << '\n';
-            while(sti.get_next_match(cur_idx))
+            if((input_image(x,y) > threshold )|| (ignore_zeros && input_image(x,y) == 0))
             {
-                new_score += img[cur_idx] * multiplier - img[cur_idx];
+                regions(x,y) = -1;
             }
-            new_score /= string_art[su.scored_a][su.scored_b].size();
-            line_scores[su.scored_a][su.scored_b] = new_score;
-        }
-    }
-
-    void make_string_art(int pins, int thickness, int resolution, int minimum_separation, linemap& out_map)
-    {
-        CImg<u_char> img(resolution, resolution, 1,1);
-        vector<int>* cur_line;
-        int x_a, y_a, x_b, y_b, i;
-        float angle_a, angle_b;
-        out_map.clear();
-        for(int a = 0; a < pins; a++)
-        {
-            angle_a = (a * 2 * M_PI / pins);
-            x_a = std::cos(angle_a) * (resolution/2 - 5) + resolution/2;
-            y_a = std::sin(angle_a) * (resolution/2 - 5) + resolution/2;
-            for(int b = a+minimum_separation; b < pins; b++)
+            else
             {
-                if((b + minimum_separation < pins) || (b + minimum_separation - pins < a))
+                int cur_region = regions(x,y);
+                if(region_sizes.find(cur_region) != region_sizes.end())
                 {
-                    angle_b = b  *2 * M_PI / pins;
-                    x_b = std::cos(angle_b) * (resolution/2 - 5) + resolution/2;
-                    y_b = std::sin(angle_b) * (resolution/2 - 5) + resolution/2;
-                    image_analysis::line_iterator<u_char> li(img,x_a,y_a,x_b,y_b,thickness);
-                    out_map[a][b] = vector<int>(li.steps);
-                    cur_line = &out_map[a][b];
-                    i = 0;
-                    while(!li.done)
-                    {
-                        (*cur_line)[i] = li.x + li.y * resolution;
-                        ++li;
-                        ++i;
-                    }
-                    std::sort(cur_line->begin(), cur_line->end());
-                }
-            }
-        }
-    };
-
-    template<typename T>
-    T average_along_line(CImg<T>& image, int start_x, int start_y, int end_x, int end_y)
-    {
-        line_iterator li(image, start_x, start_y, end_x, end_y);
-        long sum = 0;
-        while(!li.done)
-        {
-            sum += *li;
-            ++li;
-        }
-        return (T)(sum / li.steps);
-    };
-
-    template<typename T>
-    T average_along_line(CImg<T>& image, vector<int>& line)
-    {
-        long sum = 0;
-        for(int idx : line)
-        {
-            sum += image[idx];
-        }
-        return (T)(sum / line.size());
-    };
-
-    /*
-    template<typename T>
-    T update_score(CImg<T>& img, int score_a, int score_b, int overlap_a, int overlap_b, float multiplier, linescore& line_scores, linemap& string_art, T cull_threshold = 0)
-    {
-        vector<int>& score_line = string_art[score_a][score_b];
-        vector<int>& overlap_line = string_art[overlap_a][overlap_b];
-        long score_line_size = score_line.size();
-        long old_score = line_scores[score_a][score_b];
-        long new_score = old_score * score_line_size;
-        int cur_idx;
-
-        //This is a modified version of std::set_intersection that immediately uses each element instead of copying it to a vector.
-        set_intersection_iterator sti(score_line, overlap_line, img.width());
-        //std::cout << score_a << ',' << score_b << "->" << overlap_a << ',' << overlap_b << '\n';
-        while(sti.get_next_match(cur_idx))
-        {
-            new_score += img[cur_idx]*multiplier - img[cur_idx]; 
-        }
-
-        new_score /= score_line_size;
-        if(new_score > cull_threshold)
-        {
-            line_scores[score_a][score_b] = (T)new_score;
-            return (T)new_score;
-        }
-        else if(score_b != line_scores[score_a].begin()->first)
-        {    
-            line_scores[score_a].erase(score_b);
-            if(line_scores[score_a].empty()) line_scores.erase(score_a);
-        }
-        return 0;
-
-    };
-    */
-
-    template<typename T>
-    void score_all_lines(CImg<T>& image, linemap& string_art, linescore& line_scores, T cull_threshold = 0)
-    {
-        T score = 0;
-        vector<int> to_cull;
-
-        int erase_count = 0;
-        int total_count = 0;
-        for(auto a : string_art)
-        {
-            to_cull.clear();
-            for(auto b : a.second)
-            {
-                score = average_along_line(image, b.second);
-                if(score > cull_threshold)
-                {
-                    line_scores[a.first][b.first] = score;
+                    ++region_sizes[cur_region];
                 }
                 else
                 {
-                    to_cull.push_back(b.first);
-                    erase_count++;
+                    region_sizes[cur_region] = 1;
+                    std::cout << "adding region label " << cur_region << '\n';
                 }
-                total_count++;
-            }
-            for(int c : to_cull)
-            {
-                std::cout << "Culling " << a.first << ',' << c << '\n';
-                string_art[a.first].erase(c);
-                line_scores[a.first].erase(c);
-            }
-            if(string_art[a.first].empty())
-            {
-                std::cout << "Culling " << a.first << ',' << c << '\n';
-                string_art.erase(a.first);
-                line_scores.erase(a.first);
             }
         }
-        std::cout << "Lines erased: " << erase_count << "(" << 100 * ((float)erase_count / total_count) << "%)" << '\n';
+        cimg_forXY(regions, x, y)
+        {
+            regions(x,y) = region_sizes[regions(x,y)];
+        }
+        return regions;
     };
-
-    template<typename T>
-    T get_best_score(linescore& line_scores, int& pin_a, int& pin_b)
+    
+    template <typename T>
+    static CImg<int> sized_light_regions(const CImg<T>& input_image,const T threshold, bool ignore_zeros = true)
     {
-        T best_score = 0;
-        for(auto a : line_scores)
+        CImg<int> regions = CImg<int>(input_image.get_threshold(threshold)).label(false, 0, true);        
+        map<int, int> region_sizes;
+        region_sizes[-1] = 0;
+        cimg_forXY(regions, x, y)
         {
-            for(auto b : a.second)
+            int cur_region = regions(x,y);
+            if((cur_region < threshold ) || (ignore_zeros && (cur_region == 0)))
             {
-                if(b.second > best_score)
-                {
-                    best_score = b.second;
-                    pin_a = a.first;
-                    pin_b = b.first;
-                }
+                regions(x,y) = -1;
+            }
+            else if(region_sizes.find(cur_region) != region_sizes.end())
+            {
+                ++region_sizes[cur_region];
+            }
+            else
+            {
+                region_sizes[cur_region] = 1;
             }
         }
-        return best_score;
-    };
+        cimg_forXY(regions, x, y)
+        {   
 
-    template<typename T>
-    int get_next_pin(linescore& line_scores, int from_pin, T& score)
-    {
-        score = 0;
-        T cur_score = -1;
-        int to_pin = -1;
-        auto a = line_scores.begin();
-        auto b = a -> second.begin();
-        while(a -> first < from_pin && a != line_scores.end())
-        {
-            b = a -> second.find(from_pin);
-            if(b != a -> second.end())
-            {
-                cur_score = b -> second;
-                if(cur_score > score)
-                {
-                    score = cur_score;
-                    to_pin = a -> first;
-                }
-            }
-            ++a;
+            regions(x,y) = region_sizes[regions(x,y)];
         }
-        b = line_scores[from_pin].begin();
-        while(b != line_scores[from_pin].end())
-        {
-            cur_score = b -> second;
-            if(cur_score > score)
-            {
-                score = cur_score;
-                to_pin = b -> first;
-            }
-            ++b;
-        }
-        return to_pin;
+        return regions;
     };
+    
+    template <typename T>
+    static CImg<T> color_difference(const CImg<T>& rgb, const T* color)
+    {
+        CImg<T> rgb_Lab = rgb.get_RGBtoLab();
+        CImg<T> color_Lab = CImg<T>(color, 1, 1, 1, 3).RGBtoLab();
+        CImg<T> diff(rgb.width(), rgb.height(), 1, 1);
+        
+        cimg_forC(rgb_Lab, c)
+        {
+            diff += (rgb_Lab.get_shared_channel(c) - color_Lab[c]).sqr();
+        }
+        diff.sqrt();
+        return diff;
+    }
 }
 
 

@@ -45,7 +45,7 @@ class line_iterator
          * - true: Pixel values are read / written using floating point coordinates and interpolation.
          * - false: Pixel values are read / written using floored whole-number coordinates.
          */
-        line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate = false);
+        line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate = false, int edge_buffer = 0);
         
         /**
          * @brief Construct a new line iterator object
@@ -59,7 +59,7 @@ class line_iterator
          * - true: Pixel values are read / written using floating point coordinates and interpolation.
          * - false: Pixel values are read / written using floored whole-number coordinates.
          */
-        line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate = false);
+        line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate = false, int edge_buffer = 0);
         
         /**
          * @brief Step one pixel width forward
@@ -118,15 +118,20 @@ class line_iterator
          */
         IMG_TYPE set(IMG_TYPE val);
 
-        /**
-         * @brief A new-instance whole-number coord of the current position
-        */
+        /** @brief A new-instance whole-number coord of the current position*/
         scoord cur_coord();
+
+        scoord left();
+
+        scoord right();
+
 
         /**
          * @brief The current pixel's CImg index
         */
         int idx();
+
+
 
 
     private:
@@ -208,16 +213,18 @@ class line_intersection_iterator
 {
     typedef cimg_library::CImg<IMG_TYPE> tcimg;
     typedef coord<short> scoord;
+    typedef coord<float> fcoord;
     private:
     tcimg& image;
     scoord a_start;
     scoord a_end;
     scoord b_start;
     scoord b_end;
-    scoord center;
     scoord a_diff, b_diff;
     float a_mag, b_mag;
     float angle;
+    scoord center;
+
     float overlap_width;
     line_iterator<IMG_TYPE> li;
     int steps_taken = 0;
@@ -266,7 +273,7 @@ class line_intersection_iterator
     void shrink_iterator()
     {
         //std::cout << "Start / end before: " << li.start.x << ',' << li.start.y << "->" << li.end.x << ',' << li.end.y << "\n";
-        if(abs(a_end.x - a_start.x) > abs(a_end.y - a_start.x))
+        if(abs(a_end.x - a_start.x) > abs(a_end.y - a_start.y))
         {
             //std::cout << "\tShrinking x to " << center.x - cos(angle)*overlap_width/2 << "->" << center.x + cos(angle)*overlap_width/2 << '\n';
             li.shrink_around_x(center.x - abs(cos(angle)*overlap_width/2), center.x + abs(cos(angle)*overlap_width/2));
@@ -297,7 +304,39 @@ class line_intersection_iterator
         return;
     }
 
+    static float pDistance(fcoord point, fcoord line_a, fcoord line_b) {
+        float A = point.x - line_a.x;
+        float B = point.y - line_a.y;
+        float C = line_b.x - line_a.x;
+        float D = line_b.y - line_a.y;
+
+        float dot = A * C + B * D;
+        float len_sq = C * C + D * D;
+        float param = -1;
+        if (len_sq != 0) //in case of 0 length line
+            param = dot / len_sq;
+
+        float xx, yy;
+
+        if (param < 0) {
+            xx = line_a.x;
+            yy = line_a.y;
+        }
+        else if (param > 1) {
+            xx = line_b.x;
+            yy = line_b.y;
+        }
+        else {
+            xx = line_a.x + param * C;
+            yy = line_a.y + param * D;
+        }
+
+        float dx = point.x - xx;
+        float dy = point.y - yy;
+        return sqrt(dx * dx + dy * dy);
+    }
     public:
+
     line_intersection_iterator(tcimg &_image, scoord line_a_start, scoord line_a_end, scoord line_b_start, scoord line_b_end, float width_buffer = 0) : 
         image(_image),
         //Swap based on the x values, so that intersections are calculated the same regardless of what order the lines are given.
@@ -305,12 +344,17 @@ class line_intersection_iterator
         a_end((line_a_start.x <= line_a_end.x) ? line_a_end : line_a_start),
         b_start((line_b_start.x <= line_b_end.x) ? line_b_start : line_b_end),
         b_end((line_b_start.x <= line_b_end.x) ? line_b_end : line_b_start),
-        center(get_intersection()),
         angle(get_angle()),
+        center(get_intersection()),
         overlap_width(get_overlap_width(width_buffer)),
         li(line_iterator<IMG_TYPE>(image, a_start, a_end))
     {
         shrink_iterator();
+    }
+
+    bool is_within_itersection()
+    {
+        return pDistance(li.cur_coord(), b_start, b_end) <= 1;
     }
 
     //Wrapper for contained iterator. 
@@ -319,7 +363,14 @@ class line_intersection_iterator
     {
         return li.cur_coord();
     }
-
+    scoord left()
+    {
+        return li.left();
+    }
+    scoord right()
+    {
+        return li.right();
+    }
     //Wrapper for contained iterator. 
     //Step coordinate forward by 1 pixel width
     //Returns:
@@ -333,6 +384,11 @@ class line_intersection_iterator
     IMG_TYPE get() const
     {
         return li.get();
+    }
+
+    scoord& get_center()
+    {
+        return center;
     }
 };
 #endif

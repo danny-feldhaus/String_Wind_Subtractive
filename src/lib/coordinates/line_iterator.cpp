@@ -11,26 +11,30 @@
 #include "line_iterator.hpp"
 
 template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate) 
+line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate, int edge_buffer) 
     :  image(_image)
 {
+    if(distance(point_a, point_b) < edge_buffer*2)
+    {
+        throw std::domain_error("Line " + point_a.to_string() + "-> " + point_b.to_string() + " Edge buffers (" + std::to_string(edge_buffer) + " steps) are larger than line length " + std::to_string(distance(point_a,point_b)));
+    }
     float angle;
     interpolate = _interpolate;
     //Order start/end by x value. This is to avoid lines with swapped start/end behaving differently.
     start = (point_a.x < point_b.x) ? point_a : point_b;
     end   = (point_a.x < point_b.x) ? point_b : point_a;
     angle = atan2(end.y - start.y, end.x - start.x);
-
-    interpolate = _interpolate;
-    line_length = distance(start,end);
     step_size = {cos(angle),sin(angle)};
+    start += step_size * edge_buffer;
+    end -= step_size * edge_buffer;
+    line_length = distance(start,end);
     cur_pos = start;
 }
 
 //Constructor. Creates some coord objects and calls the above constructor with them.
 template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate) 
-    : line_iterator(_image, coord(ax,ay), coord(bx,by), _interpolate)
+line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate, int edge_buffer) 
+    : line_iterator(_image, scoord(ax,ay), scoord(bx,by), _interpolate, edge_buffer)
 {}
 
 //Step by one pixel width.
@@ -138,6 +142,18 @@ coord<short> line_iterator<IMG_TYPE>::cur_coord()
 }
 
 template<class IMG_TYPE>
+coord<short> line_iterator<IMG_TYPE>::left()
+{
+    return scoord(cur_pos.x + step_size.y,cur_pos.y - step_size.x);
+}
+
+template<class IMG_TYPE>
+coord<short> line_iterator<IMG_TYPE>::right()
+{
+    return scoord(cur_pos.x - step_size.y,cur_pos.y + step_size.x);
+}
+
+template<class IMG_TYPE>
 int line_iterator<IMG_TYPE>::idx()
 {
     //Index equation copied right from CImg.h
@@ -149,3 +165,4 @@ template class line_iterator<bool>;
 template class line_iterator<u_char>;
 template class line_iterator<int>;
 template class line_iterator<float>;
+template class line_iterator<u_short>;

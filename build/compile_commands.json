@@ -1,17 +1,17 @@
 [
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++ -DDEBUG -DDEBUG_OVERLAPS -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -fopenmp -O3 -o CMakeFiles/line_iterator.dir/src/lib/coordinates/line_iterator.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp",
+  "command": "clang++ -DDEBUG -DDEBUG_OVERLAP -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -std=c++17 -fopenmp=libomp -O3 -o CMakeFiles/line_iterator.dir/src/lib/coordinates/line_iterator.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates/line_iterator.cpp"
 },
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++ -DDEBUG -DDEBUG_OVERLAPS -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -Wall -Wextra -fopenmp -O3 -o CMakeFiles/string_art.dir/src/lib/image/string_art.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp",
+  "command": "clang++ -DDEBUG -DDEBUG_OVERLAP -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -Wall -Wextra -std=c++17 -fopenmp=libomp -O3 -o CMakeFiles/string_art.dir/src/lib/image/string_art.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/lib/image/string_art.cpp"
 },
 {
   "directory": "/home/danny/Programming/String_Wind_Subtractive/build",
-  "command": "/usr/bin/g++ -DDEBUG -DDEBUG_OVERLAPS -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive/src -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -fopenmp -O3 -o CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/main.cpp",
+  "command": "clang++ -DDEBUG -DDEBUG_OVERLAP -DDEBUG_PATH_STEPS -DDEBUG_SCORING -DDEBUG_TIMING -I/home/danny/Programming/String_Wind_Subtractive -I/home/danny/Programming/String_Wind_Subtractive/src/lib/CImg -I/home/danny/Programming/String_Wind_Subtractive/src -I/home/danny/Programming/String_Wind_Subtractive/src/lib/image -I/home/danny/Programming/String_Wind_Subtractive/src/lib/coordinates -Wall -Wextra -std=c++17 -fopenmp=libomp -O3 -o CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o -c /home/danny/Programming/String_Wind_Subtractive/src/main.cpp",
   "file": "/home/danny/Programming/String_Wind_Subtractive/src/main.cpp"
 }
 ]

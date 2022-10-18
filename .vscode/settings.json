@@ -65,5 +65,8 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "Enabled",
+    "C_Cpp.clang_format_path": "",
+    "C_Cpp.intelliSenseEngineFallback": "Enabled"
 }

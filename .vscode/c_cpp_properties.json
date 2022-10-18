@@ -3,7 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/src/lib/**",
+                "${workspaceFolder}/src/lib/CImg"
             ],
             "defines": [],
             "compilerPath": "/bin/gcc",

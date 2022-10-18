@@ -2,7 +2,8 @@
 #define IMAGE_EDITING_HPP
 #include "CImg.h"
 //#include "image_analysis.hpp"
-#include <iterator>
+#include "line_iterator.hpp"
+#include "coord.hpp"
 #include <math.h>
 #include <map>
 #include <vector>
@@ -13,36 +14,6 @@ using std::max;
 
 namespace image_editing
 {
-
-    template<typename T> 
-    void mult_points(CImg<T>& img, vector<int>& idxs, float multiplier)
-    {
-        for(int idx : idxs)
-        {
-            img[idx] *= multiplier;
-        }
-    }
-    /*
-    template<typename T>
-    void score_and_multiply(CImg<T>& img, int pin_a, int pin_b, linemap& string_art, map<int, vector<vector<int>>>& to_update, float multiplier)
-    {
-        for(auto other_a = string_art.lower_bound(pin_a+1); other_a != string_art.end() && other_a->first < pin_b; ++other_a)
-        {
-            for(auto other_b = other_a->second.begin(); other_b != other_a->second.end(); other_b++)
-            {
-                if(other_b -> first < pin_a || other_b -> first > pin_b)
-                {
-                    to_update[]
-                    image_analysis::update_score(img, other_a->first, other_b->first, pin_a, pin_b, multiplier, line_scores, string_art);
-                }
-            }       
-        }
-        mult_points(img, string_art[pin_a][pin_b], multiplier);
-        line_scores[pin_a][pin_b] = image_analysis::average_along_line(img, string_art[pin_a][pin_b]);
-        return;
-    }   */
-
-
     template<typename T> 
     void draw_points(CImg<T>& img, vector<int>& idxs, T color = 255)
     {
@@ -52,10 +23,18 @@ namespace image_editing
         }
     }
 
-    template<typename T> 
-    void draw_line(CImg<T>& img, int ax, int ay, int bx, int by, T color = 255)
+    template <class IMG_TYPE>
+    void draw_line(CImg<IMG_TYPE> &image, const coord<short> line_a, const coord<short> line_b, const IMG_TYPE color, const short buffer = 0)
     {
-        img.draw_line(ax,ay,bx,by,&color);
+        line_iterator<IMG_TYPE> li(image, line_a.x, line_a.y, line_b.x, line_b.y, false, 0);
+        for(int i=0; i < buffer; i++)
+        {
+            li.step();
+        }
+        do
+        {
+            li.set(color);
+        } while (li.step() &&( li.cur_length <= li.line_length - buffer));
         return;
     }
 
