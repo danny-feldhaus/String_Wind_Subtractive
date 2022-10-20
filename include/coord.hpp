@@ -10,7 +10,6 @@
  */
 #ifndef COORD_H 
 #define COORD_H
-#define cimg_plugin "../coordinates/coord_cimg_plugin.h"
 #include <math.h>
 #include <iostream>
 #include <string>

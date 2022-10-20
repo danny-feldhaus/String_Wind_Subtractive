@@ -3,7 +3,9 @@
 template <class IMG_TYPE>
 string_art<IMG_TYPE>::string_art(const char *_image_file, const short _resolution, const short _pin_count, float _pin_radius, short _min_separation, u_char _score_method, float _score_modifier, const short _score_depth, const float accessibility_weight, const float localsize_weight, const float neighbor_weight)
     : 
+    #ifdef DEBUG
       dm(display_manager<IMG_TYPE>(1024,1024,"Debug Info")),
+    #endif
       rgb_image(make_rgb_image(_image_file, _resolution)),
       lab_image(rgb_image.get_shared_channels(0, 2).get_RGBtoLab()),
       darkness_image(make_darkness_image(rgb_image)),
@@ -34,6 +36,7 @@ string_art<IMG_TYPE>::string_art(const char *_image_file, const short _resolutio
     std::cout << "Scoring all lines...\n";
     score_all_lines();
     dm.add_image(&string_image, 1);
+    dm.set_pause(true);
     /*
     #if defined(DEBUG) && defined(DEBUG_SCORING)
         CImg<int> am = accessibility_map.get_normalize(0,255);
@@ -64,12 +67,10 @@ short *string_art<IMG_TYPE>::generate(const short path_steps)
         throw std::domain_error("Number of steps is out of range (" + std::to_string(path_steps) + ")");
 #if defined(DEBUG)
     //cd_image = CImg<IMG_TYPE>(cd_size, cd_size, 1, 3, 255);
-    #if defined(DEBUG_TIMING)
         std::deque<float> last_10_sps;
         float runtime_seconds = 0.f;
         float getscore_time = 0.f;
         float update_time = 0.f;
-    #endif //DEBUG_TIMING
     bool gen_done = false;
     short step = 0;
 #endif //DEBUG
@@ -78,20 +79,20 @@ short *string_art<IMG_TYPE>::generate(const short path_steps)
 
     path[0] = best_pin();
     //Split into two threads for processing and display
-    #pragma omp parallel num_threads(2), shared(po, gen_done, string_image)
+    #pragma omp parallel num_threads(2), shared(ai, gen_done, string_image)
     {
     if(omp_get_thread_num() == 0) //Processing
     {
         for (step = 1; step < path_steps; step++)
         {
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
+    #if defined(DEBUG)
             auto start = high_resolution_clock::now();
             auto start_getscore = high_resolution_clock::now();
     #endif //DEBUG && DEBUG_TIMING
 
             path[step] = best_pin_for(path[step - 1], score, score_depth);
 
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
+    #if defined(DEBUG)
             auto stop_getscore = high_resolution_clock::now();
             getscore_time = duration_cast<microseconds>(stop_getscore - start_getscore).count() / 1000000.f;
             auto start_update = high_resolution_clock::now();
@@ -99,14 +100,13 @@ short *string_art<IMG_TYPE>::generate(const short path_steps)
 
             update_scores(path[step], path[step - 1]);
 
-    #if defined(DEBUG) && defined(DEBUG_TIMING)
+    #if defined(DEBUG)
             auto stop_update = high_resolution_clock::now();
             update_time = duration_cast<microseconds>(stop_update - start_update).count() / 1000000.f;
     #endif //DEBUG && DEBUG_TIMING
 
     #if defined(DEBUG)
             ai.set_flt("Score", score, 2);
-    #ifdef DEBUG_TIMING
             auto stop = high_resolution_clock::now();
             float step_time = duration_cast<microseconds>(stop - start).count() / 1000000.f;
             runtime_seconds += step_time;
@@ -124,10 +124,7 @@ short *string_art<IMG_TYPE>::generate(const short path_steps)
             ai.set_percent("\% Other", 1.f - (getscore_time + update_time) / step_time, 1, true);
             ai.set_flt("Avg Steps Per Second", (step / runtime_seconds), 2);
             ai.set_flt("Local Avg Steps Per Second", last_10_avg, 2);
-            ai.set_flt("Darkness min", darkness_image.min(), 1, 3);
-            ai.set_flt("Darkness max", darkness_image.max(), 1, 3);
             ai.set_str("Est. time to completion", (std::to_string(hours_to) + ":" + std::to_string(minutes_to) + ":" + std::to_string(seconds_to)).c_str());
-    #endif //DEBUG_TIMING
             ai.set_progress("Progress", step + 1, path_steps);
             std::cout << ai.to_string();
     #endif //DEBUG
@@ -177,7 +174,7 @@ bool string_art<IMG_TYPE>::save_string_image(const char *image_file, const bool 
     }
     return true;
 }
-#if defined(DEBUG) && defined(DEBUG_SCORING)
+#if defined(DEBUG)
 template <class IMG_TYPE>
 void string_art<IMG_TYPE>::debug_show_all_connections()
 {
@@ -331,7 +328,7 @@ void string_art<IMG_TYPE>::update_scores(const short pin_a,const short pin_b)
         case 0:
         case 2:
         default:
-            darken_line(darkness_image, pin_a, pin_b);
+            image_editing::multiply_line(darkness_image, pins[pin_a], pins[pin_b], score_modifier, 3, true);
             break;
         case 1:
             break;

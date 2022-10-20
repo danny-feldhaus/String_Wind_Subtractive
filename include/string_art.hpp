@@ -3,12 +3,12 @@
 #define SCORE_RESOLUTION 255
 #define cimg_use_png 1
 #include "coord.hpp"
-#include "CImg.h"
-#include "line_iterator.hpp"
-#include "display_manager.hpp"
-#include "ascii_info.hpp"
-#include "image_analysis.hpp"
-#include "image_editing.hpp"
+#include <CImg.h>
+#include <line_iterator.hpp>
+#include <display_manager.hpp>
+#include <ascii_info.hpp>
+#include <image_analysis.hpp>
+#include <image_editing.hpp>
 #include <map>
 #include <vector>
 #include <deque>
@@ -20,10 +20,8 @@
 #include <string>
 #include <iomanip>
 #include <omp.h>
-#ifdef DEBUG_TIMING
 #include <chrono>
 using namespace std::chrono;
-#endif
 
 using coordinates::coord;
 using std::make_pair;
@@ -93,11 +91,9 @@ private:
         const IMG_TYPE black[3]{0,0,0};
         const IMG_TYPE white[3]{255, 255,255};
 
-        #ifdef DEBUG_SCORING
-            bool show_pixel_scoring = true;
-            bool zoom_pixel_scoring = false; //toggle with Z
-            bool step_manual = false; //t
-        #endif
+        bool show_pixel_scoring = true;
+        bool zoom_pixel_scoring = false; //toggle with Z
+        bool step_manual = false; //t
     #endif
 
     /** @brief Re-sized image from the input filepath */

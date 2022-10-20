@@ -1,8 +1,7 @@
 #include <iostream>
 #define cimg_use_png 1
 #define cimg_use_openmp 1
-#include "CImg.h"
-#include "string_art.hpp"
+#include <string_art.hpp>
 //#include "image_analysis.hpp"
 #include "image_editing.hpp"
 #include "coord.hpp"
@@ -18,15 +17,15 @@ using std::map;
 using std::pair;
 using std::ofstream;
 using std::ifstream;
-#define SIZES {4096}
+#define SIZES {2048}
 #define PIN_COUNTS {250}
 #define STEPS {4000}
 #define MIN_SEPARATIONS {10}
-#define MODIFIERS {0.f, 0.1f, 0.2f}
+#define MODIFIERS {0.f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f}
 #define CULL_THRESH (short)100
 #define DEPTHS {2}
 #define IMAGE_PATHS {"/home/danny/Programming/String_Wind_Subtractive/images/vg2_hr"}
-#define METHODS {2}
+#define METHODS {0}
 #define ACC_WEIGHTS {0.f}//, 0.5f, 1.f}
 #define SZ_WEIGHTS {0.f}//, 0.5f, 1.f}
 typedef float IMG_TYPE;

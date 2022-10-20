@@ -1,6 +1,6 @@
 #ifndef LINE_ITERATOR_H
 #define LINE_ITERATOR_H
-#include "CImg.h"
+#include <CImg/CImg.h>
 #include "coord.hpp"
 #include "line.hpp"
 

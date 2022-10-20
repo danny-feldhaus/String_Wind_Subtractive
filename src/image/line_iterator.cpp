@@ -8,7 +8,7 @@
  * @copyright Copyright (c) 2022
  * 
  */
-#include "line_iterator.hpp"
+#include <line_iterator.hpp>
 
 template <class IMG_TYPE>
 line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate, int edge_buffer) 

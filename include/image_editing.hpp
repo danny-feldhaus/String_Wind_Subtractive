@@ -38,19 +38,36 @@ namespace image_editing
         return;
     }
 
-    /*
+    /**
+     * @brief Multiply pixels along a line by a constant
+     * @tparam T Image type
+     * @param image Image to modify
+     * @param line_a Start coordinate of line
+     * @param line_b End coordinate of line
+     * @param multiplier Amount to multiply each pixel by
+     * @param buffer Steps to skip at start / end of line
+     * @param multiply_LR If \c true pixels to the left and right (oriented to the line) are also multiplied. If \c false , only pixels in the line are modified.
+     */
     template<typename T>
-    void draw_all_lines(CImg<T>& img, linemap& string_art)
+    void multiply_line(CImg<T>& image, const coord<short> line_a, const coord<short> line_b, const float multiplier, const short buffer = 0, const bool multiply_LR = false)
     {
-        for(auto a : string_art)
+        line_iterator<T> li(image, line_a.x, line_a.y, line_b.x, line_b.y, false, 0);
+        for(int i=0; i < buffer; i++)
         {
-            for(auto b : a.second)
-            {
-                draw_points<T>(img, b.second, 255);
-            }
+            li.step();
         }
+        do
+        {
+            li.set(li.get() * multiplier);
+            if(multiply_LR)
+            {
+                image(li.left().x, li.left().y) *= multiply_LR;
+                image(li.right().x, li.right().y) *= multiply_LR;
+            }
+        } while (li.step() &&( li.cur_length <= li.line_length - buffer));
+        return;
     }
-    */
+
     template<typename T>
     void color_difference(CImg<T>& image_a, CImg<T>& image_b, CImg<T>& out)
     {
@@ -62,6 +79,8 @@ namespace image_editing
         out = diff;
         return;
     }
+
+
 }
 
 

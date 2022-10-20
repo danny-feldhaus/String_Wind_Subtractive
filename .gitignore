@@ -10,3 +10,12 @@ docs/*
 src/lib/CImg
 build/Stringwind_Subtractive
 build/Testing
+build/cmake_install.cmake
+build/CMakeCache.txt
+build/compile_commands.json
+build/Stringwind_Subtractive
+build/CMakeFiles/TargetDirectories.txt
+build/CMakeFiles/Stringwind_Subtractive.dir/src/main.cpp.o
+build/Testing/Temporary/LastTest.log
+.vscode/c_cpp_properties.json
+src/output/CMakeCache.txt

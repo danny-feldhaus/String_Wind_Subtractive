@@ -1,6 +1,7 @@
-#include "display_manager.hpp"
+#include <display_manager.hpp>
 
-display_manager::display_manager(const short _width, const short _height, const char* title, vector<key_options>* _allowed_keys = nullptr,  bool full_screen = false, bool is_closed = false)
+template <typename T>
+display_manager<T>::display_manager(const short _width, const short _height, const char* title, vector<key_options>* _allowed_keys,  bool full_screen, bool is_closed)
 {
 	cd = CImgDisplay(_width, _height, title, 0, full_screen, is_closed);
 	if(_allowed_keys == nullptr)
@@ -15,7 +16,7 @@ display_manager::display_manager(const short _width, const short _height, const 
 }
 
 template <typename T>
-void display_manager::update(const char* text = nullptr, bool force_redraw = false)
+void display_manager<T>::update(const char* text, bool force_redraw)
 {
 	fps = cd.frames_per_second();
 	update_input();
@@ -23,7 +24,7 @@ void display_manager::update(const char* text = nullptr, bool force_redraw = fal
 }
 
 template <typename T>
-void display_manager::update_input()
+void display_manager<T>::update_input()
 {
 	state.changed = false;
 	state.x_move_dir = state.y_move_dir = state.zoom_dir = 0;
@@ -101,54 +102,63 @@ void display_manager::update_input()
 }
 
 template <typename T>
-void display_manager::wait(u_int milliseconds)
+void display_manager<T>::wait(u_int milliseconds)
 {
 	cd.wait(milliseconds);
 }
 
 template <typename T>
+void display_manager<T>::set_pause(const bool val)
+{
+	if(state.is_paused != val)
+	{
+		state.is_paused = true;
+		state.changed = true;
+	}
+}
 
-u_int display_manager::add_image(const CImg<T>* _image, const u_int _normalization = 0)
+template <typename T>
+u_int display_manager<T>::add_image(const CImg<T>* _image, const u_int _normalization)
 {
 	disp_infos.push_back({_image, _normalization, 0.5f, 0.5f, 1.f});
 	return disp_infos.size()-1;
 }
 
 template <typename T>
-void display_manager::set_image(const u_int _index, const CImg<T>* _image, const u_int _normalization = 0)
+void display_manager<T>::set_image(const u_int _index, const CImg<T>* _image, const u_int _normalization)
 {
-	if(index > disp_infos.size()) throw std::domain_error("Index is not assigned to an image.");
+	if(_index > disp_infos.size()) throw std::domain_error("Index is not within range");
 	disp_infos[_index].image = _image;
 	disp_infos[_index].normalization = _normalization;
 }
 
 template <typename T>
-bool display_manager::is_paused() const
+bool display_manager<T>::is_paused() const
 {
 	return state.is_paused;
 }
 
 template <typename T>
-float display_manager::spf() const
+float display_manager<T>::spf() const
 {
 	return 1.f / fps;
 }
 
 template <typename T>
-size_t display_manager::size() const
+size_t display_manager<T>::size() const
 {
 	return disp_infos.size();
 }
 
 template <typename T>
 
-bool display_manager::is_key(const u_int key) const
+bool display_manager<T>::is_key(const u_int key) const
 {
 	return cd.is_key(key);
 }
 
 template <typename T>
-void display_manager::update_state(const char* text, bool force_redraw)
+void display_manager<T>::update_state(const char* text, bool force_redraw)
 {
 	
 	if((force_redraw || state.changed) && (disp_infos.size() > 0))
@@ -179,3 +189,5 @@ void display_manager::update_state(const char* text, bool force_redraw)
 }
 
 template class display_manager<float>;
+template class display_manager<short>;
+template class display_manager<int>;
