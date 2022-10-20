@@ -8,7 +8,7 @@ string_art<IMG_TYPE>::string_art(const char *_image_file, const short _resolutio
     #endif
       rgb_image(make_rgb_image(_image_file, _resolution)),
       lab_image(rgb_image.get_shared_channels(0, 2).get_RGBtoLab()),
-      darkness_image(make_darkness_image(rgb_image)),
+      darkness_image(make_darkness_image(rgb_image, _pin_radius)),
       pin_count(_pin_count),
       pins(circular_pins(rgb_image, _pin_radius, _pin_count)),
       score_method(_score_method),
@@ -24,7 +24,7 @@ string_art<IMG_TYPE>::string_art(const char *_image_file, const short _resolutio
     //CImgList<u_short> slices = map_lines_to_slices();
     std::cout << "Building accessibility map...\n";
     accessibility_map = make_accessibility_map();
-    dm.add_image(&accessibility_map, 2);
+    //dm.add_image(&accessibility_map, 2);
     std::cout << "Building region size map...\n";
     region_size_map = make_region_size_map();
     dm.add_image(&region_size_map, 2);
@@ -73,6 +73,7 @@ short *string_art<IMG_TYPE>::generate(const short path_steps)
         float update_time = 0.f;
     bool gen_done = false;
     short step = 0;
+    std::cout << "Calculating path...\n";
 #endif //DEBUG
     short *path = new short[path_steps];
     IMG_TYPE score = 0;
@@ -896,7 +897,7 @@ CImg<IMG_TYPE> string_art<IMG_TYPE>::make_accessibility_map()
 template <typename IMG_TYPE>
 CImg<IMG_TYPE> string_art<IMG_TYPE>::make_region_size_map()
 {
-    CImg<IMG_TYPE> image = image_analysis::sized_light_regions<IMG_TYPE>(darkness_image, (IMG_TYPE)(0.65f*SCORE_RESOLUTION), true);
+    CImg<IMG_TYPE> image = image_analysis::sized_light_regions<IMG_TYPE>(darkness_image.get_blur_median(3), (IMG_TYPE)(0.1f*SCORE_RESOLUTION), true);
     
     cimg_forXY(image, x, y)
     {
@@ -917,7 +918,7 @@ cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_rgb_image(const char *im
 }
 
 template <typename IMG_TYPE>
-cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tcimg &rgb_image)
+cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tcimg &rgb_image, const float radius)
 {
     tcimg b_w = 255 - (0.299 * rgb_image.get_shared_channel(0) +
                        0.587 * rgb_image.get_shared_channel(1) +
@@ -931,7 +932,15 @@ cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tci
     {
         mask = tcimg(rgb_image.width(), rgb_image.height(), 1, 1, 1.f);
     }
-    b_w.blur_median(1);
+    float sqr_img_rad = pow(radius*rgb_image.width()/2, 2);
+    scoord center(rgb_image.width()/2, rgb_image.height()/2);
+    cimg_forXY(mask, x, y)
+    {
+        if(pow(x - center.x,2) + pow(y - center.y,2) > sqr_img_rad)
+        {
+            mask(x,y) = 0;
+        }
+    }
     b_w.mul(mask);
     CImg<float> hist = b_w.get_histogram(256);
     int cut_threshold = 255;
@@ -943,8 +952,6 @@ cimg_library::CImg<IMG_TYPE> string_art<IMG_TYPE>::make_darkness_image(const tci
     }
     b_w.cut(0,cut_threshold);
     b_w.equalize(255, 1, cut_threshold);
-    b_w = (b_w + SCORE_RESOLUTION)/2.f;
-    b_w.mul(mask);
     std::cout << "End min/max: " << b_w.min() << ',' << b_w.max() << '\n';
     return b_w;
 }

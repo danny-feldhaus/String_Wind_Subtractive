@@ -57,12 +57,14 @@ namespace image_analysis
     static CImg<int> sized_light_regions(const CImg<T>& input_image,const T threshold, bool ignore_zeros = true)
     {
         CImg<int> regions = CImg<int>(input_image.get_threshold(threshold)).label(false, 0, true);        
+        regions.display();
+        
         map<int, int> region_sizes;
         region_sizes[-1] = 0;
         cimg_forXY(regions, x, y)
         {
             int cur_region = regions(x,y);
-            if((cur_region < threshold ) || (ignore_zeros && (cur_region == 0)))
+            if((input_image(x,y) < threshold ) || (ignore_zeros && (cur_region == 0)))
             {
                 regions(x,y) = -1;
             }

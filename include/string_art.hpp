@@ -296,7 +296,7 @@ private:
 
     static tcimg make_rgb_image(const char *image_file, short resolution);
 
-    static tcimg make_darkness_image(const tcimg &rgb_image);
+    static tcimg make_darkness_image(const tcimg &rgb_image, const float radius);
 
     void weight_darkness_image();
 };
