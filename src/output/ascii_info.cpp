@@ -1,4 +1,4 @@
-#include "ascii_info.hpp"
+#include <ascii_info.hpp>
 void ascii_info::set_str(const string name, const string val, const short indents)
 {
     auto f = std::find_if(fields.begin(), fields.end(), [name](pair<string,string> p){return p.first == name;});
@@ -19,19 +19,19 @@ void ascii_info::set_str(const string name, const string val, const short indent
     }
 }
 
-void ascii_info::set_int(const string name, const int val, const short indents);
+void ascii_info::set_int(const string name, const int val, const short indents)
 {
     set_str(name, std::to_string(val), indents);
 }
 
 void ascii_info::set_flt(const string name, const float val, const int precision, const short indents)
-    {
-        stringstream ss;
-        ss << std::fixed << std::setprecision(precision) << val;
-        set_str(name, ss.str(), indents);
-    }
+{
+    stringstream ss;
+    ss << std::fixed << std::setprecision(precision) << val;
+    set_str(name, ss.str(), indents);
+}
 
-void ascii_info::set_percent(const string name, const float val, const short precision, const bool is_ratio =  false, const short indents)
+void ascii_info::set_percent(const string name, const float val, const short precision, const bool is_ratio, const short indents)
 {
     stringstream ss;
     ss << std::fixed << std::setprecision(precision);
@@ -41,7 +41,7 @@ void ascii_info::set_percent(const string name, const float val, const short pre
     set_str(name, ss.str(), indents);
 }
 
-void ascii_info::set_progress(const string name, const float cur_val, const float end_val, const short bar_width = 100, const short precision, const short indents)
+void ascii_info::set_progress(const string name, const float cur_val, const float end_val, const short bar_width, const short precision, const short indents)
 {
     stringstream ss;
     int width_finished = (cur_val/end_val) * bar_width;
@@ -72,7 +72,7 @@ void ascii_info::set_progress(const string name, const float cur_val, const floa
     set_str(name, ss.str(), indents);
 }
 
-string ascii_info::to_string(bool use_ANSII=true) const
+string ascii_info::to_string(bool use_ANSII) const
 {
     stringstream ss;
 

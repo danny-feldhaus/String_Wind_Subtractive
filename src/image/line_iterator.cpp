@@ -8,51 +8,12 @@
  * @copyright Copyright (c) 2022
  * 
  */
-#include "line_iterator.hpp"
-
-template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate, int edge_buffer) 
-    :  image(_image)
-{
-    if(distance(point_a, point_b) < edge_buffer*2)
-    {
-        throw std::domain_error("Line " + point_a.to_string() + "-> " + point_b.to_string() + " Edge buffers (" + std::to_string(edge_buffer) + " steps) are larger than line length " + std::to_string(distance(point_a,point_b)));
-    }
-    float angle;
-    interpolate = _interpolate;
-    //Order start/end by x value. This is to avoid lines with swapped start/end behaving differently.
-    start = (point_a.x < point_b.x) ? point_a : point_b;
-    end   = (point_a.x < point_b.x) ? point_b : point_a;
-    angle = atan2(end.y - start.y, end.x - start.x);
-    step_size = {cos(angle),sin(angle)};
-    start += step_size * edge_buffer;
-    end -= step_size * edge_buffer;
-    line_length = distance(start,end);
-    cur_pos = start;
-}
-
-//Constructor. Creates some coord objects and calls the above constructor with them.
-template <class IMG_TYPE>
-line_iterator<IMG_TYPE>::line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate, int edge_buffer) 
-    : line_iterator(_image, scoord(ax,ay), scoord(bx,by), _interpolate, edge_buffer)
-{}
-
-//Step by one pixel width.
-template<class IMG_TYPE>
-bool line_iterator<IMG_TYPE>::step()
-{
-    //Return false if this would step past the end point
-    if(cur_length + 1 > line_length) return false;
-    cur_pos.x += step_size.x;
-    cur_pos.y += step_size.y;
-    ++cur_length;
-    return true;
-}
+#include <line_iterator.hpp>
 
 //Shrink to the given min/max x coordinates.
 //  Avoids intermediate steps with two larger jumps
-template<class IMG_TYPE>
-bool line_iterator<IMG_TYPE>::shrink_around_x(float min_x, float max_x)
+template<class T>
+bool line_iterator<T>::shrink_around_x(float min_x, float max_x)
 {
         int steps_to_min = abs((min_x - start.x) / step_size.x);
         int steps_to_max = abs((end.x - max_x) / step_size.x);
@@ -70,8 +31,8 @@ bool line_iterator<IMG_TYPE>::shrink_around_x(float min_x, float max_x)
 
 //Shrink to the given min/max y coordinates.
 //  Avoids intermediate steps with two larger jumps
-template<class IMG_TYPE>
-bool line_iterator<IMG_TYPE>::shrink_around_y(float min_y, float max_y)
+template<class T>
+bool line_iterator<T>::shrink_around_y(float min_y, float max_y)
 {
     float steps_to_min, steps_to_max;
     //start & end are not sorted by y, so some values need to be swapped when the start is below the end.
@@ -101,8 +62,8 @@ bool line_iterator<IMG_TYPE>::shrink_around_y(float min_y, float max_y)
     return true;
 }
 
-template<class IMG_TYPE>
-bool line_iterator<IMG_TYPE>::step_back()
+template<class T>
+bool line_iterator<T>::step_back()
 {
     if(cur_length-- == 0)
     {
@@ -114,15 +75,15 @@ bool line_iterator<IMG_TYPE>::step_back()
     return true;
 }
 
-template<class IMG_TYPE>
-IMG_TYPE line_iterator<IMG_TYPE>::get() const
+template<class T>
+T line_iterator<T>::get() const
 {
     if(interpolate) return image.linear_atXY(cur_pos.x,cur_pos.y);
     return image(cur_pos.x,cur_pos.y);
 }
 
-template<class IMG_TYPE>
-IMG_TYPE line_iterator<IMG_TYPE>::set(IMG_TYPE val)
+template<class T>
+T line_iterator<T>::set(T val)
 {
     if(interpolate) 
     {
@@ -135,29 +96,53 @@ IMG_TYPE line_iterator<IMG_TYPE>::set(IMG_TYPE val)
     return val;
 }
 
-template<class IMG_TYPE>
-coord<short> line_iterator<IMG_TYPE>::cur_coord()
+template<class T>
+coord<short> line_iterator<T>::cur_coord()
 {
     return scoord(cur_pos.x,cur_pos.y);
 }
 
-template<class IMG_TYPE>
-coord<short> line_iterator<IMG_TYPE>::left()
+template<class T>
+coord<short> line_iterator<T>::left()
 {
     return scoord(cur_pos.x + step_size.y,cur_pos.y - step_size.x);
 }
 
-template<class IMG_TYPE>
-coord<short> line_iterator<IMG_TYPE>::right()
+template<class T>
+coord<short> line_iterator<T>::right()
 {
     return scoord(cur_pos.x - step_size.y,cur_pos.y + step_size.x);
 }
 
-template<class IMG_TYPE>
-int line_iterator<IMG_TYPE>::idx()
+template<class T>
+int line_iterator<T>::idx()
 {
     //Index equation copied right from CImg.h
     return cur_pos.x + cur_pos.y * image.width();
+}
+
+//Private
+
+template<class T>
+coord<float> line_iterator<T>::get_left_offset() const
+{
+    fcoord offset(-d.y, d.x);
+    if(scoord(pos + offset) == scoord(pos))
+    {
+        offset *= 2;
+    }
+    return offset;
+}
+
+template<class T>
+coord<float> line_iterator<T>::get_right_offset() const
+{
+    fcoord offset(d.y, -d.x);
+    if(scoord(pos + offset) == scoord(pos))
+    {
+        offset *= 2;
+    }
+    return offset;
 }
 
 template class line_iterator<short>;

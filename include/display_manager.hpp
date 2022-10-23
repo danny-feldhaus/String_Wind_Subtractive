@@ -20,13 +20,14 @@
 #include <utility>
 #include <algorithm>
 #include <limits>
-#include "CImg.h"
+#include <CImg.h>
 using std::string;
 using std::stringstream;
 using std::vector;
 using std::pair;
 using std::make_pair;
 using std::map;
+using namespace cimg_library;
 template <typename T>
 class display_manager
 {
@@ -88,6 +89,11 @@ public:
 	 * @param _normalization Normalization method used (0=none, 1=always, 2=once, 3=pixel type-dependent)
 	 */
 	void set_image(const u_int _index, const CImg<T>* _image, const u_int _normalization = 0);
+
+    /**
+     * @brief Set is_paused() to \c true pr \c false 
+     */
+    void set_pause(const bool val);
 
 	/**
 	 * @brief Return the pause state of the display

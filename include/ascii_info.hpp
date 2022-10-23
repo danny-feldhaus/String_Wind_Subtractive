@@ -18,7 +18,7 @@ using std::map;
 class ascii_info
 {
 public:
-    ascii_info();
+    ascii_info(){};
 
     void set_str(const string name, const string val, const short indents = 0);
 
