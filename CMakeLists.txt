@@ -12,7 +12,7 @@ file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/include/*.hpp ${PROJECT_SOURCE_D
 
 add_subdirectory(${S_S_SOURCE_DIR}/output)
 add_subdirectory(${S_S_SOURCE_DIR}/image)
-
+add_subdirectory(${S_S_SOURCE_DIR}/coordinates)
 add_executable(Stringwind_Subtractive ${S_S_SOURCE_DIR}/main.cpp ${SOURCES})
 target_link_libraries(Stringwind_Subtractive string_art)
 find_package(X11 REQUIRED)

@@ -1,19 +1,19 @@
 #ifndef STRING_ART_H
 #define STRING_ART_H
-#define SCORE_RESOLUTION 255
+#define SCORE_RESOLUTION 255.f
 #define cimg_use_png 1
-#include "coord.hpp"
+#include <coord.hpp>
 #include <CImg.h>
-#include <line_iterator.hpp>
+#include <line.hpp>
 #include <display_manager.hpp>
 #include <ascii_info.hpp>
 #include <image_analysis.hpp>
 #include <image_editing.hpp>
+
 #include <map>
 #include <vector>
 #include <deque>
 #include <numeric>
-
 #include <math.h>
 #include <assert.h>
 #include <stdexcept>
@@ -62,7 +62,7 @@ public:
      * @param _score_modifier Only used for score_method = 1. 1 = no darkening, 0 = 100% darkening
      * @param _score_depth Number of steps to look ahead when finding the next best pin
      */
-    string_art(const char *_image_file, const short _resolution, const short _pin_count, float _pin_radius, short _min_separation = 1, u_char _score_method = 0, float _score_modifier = 0, const short _score_depth = 1, const float accessibility_weight = 0, const float localsize_weight = 0, const float neighbor_weight = 0.f);
+    string_art(const char *_image_file, const short _resolution, const short _pin_count, float _pin_radius, short _min_separation = 1, u_char _score_method = 0, float _score_modifier = 0, const short _score_depth = 1, const float localsize_weight = 0, const float neighbor_weight = 0.f);
 
     ~string_art();
 
@@ -103,12 +103,13 @@ private:
     /** @brief Image darkness map. 0 = white, 10000 = black */
     tcimg darkness_image;
 
+    CImgList<u_short> slices;
     /** @brief Visual representation of the chosen string path */
+
     tcimg string_image;
     /** @brief Copy of string_image, one step behind.*/
     tcimg old_string_image;
-    /** @brief A map of how many lines can access each pixel*/
-    CImg<IMG_TYPE> accessibility_map;
+
     /** @brief A map of the size of dark regions*/
     CImg<IMG_TYPE> region_size_map;
     /** @brief Number of pins */
@@ -125,8 +126,6 @@ private:
     const short score_depth;
     /** @brief Total number of possible connections */
     int line_count;
-    /** @brief Weight given to a pixel's accessibility (number of strings that can reach it) during scoring*/
-    const float wg_accessibility;
     /** @brief Weight given to a pixel's local region size (prioritizing small dark regions)*/
     const float wg_localsize;
     /** @brief Weight given to the pixels to the left and right of each scored point*/
@@ -189,7 +188,7 @@ private:
      * @param new_string_image String image after the overlapping line is added
      * @return IMG_TYPE Updated score
      */
-    IMG_TYPE update_score(const short scored_a, const short scored_b, const short overlap_a, const short overlap_b, tcimg &old_string_image, tcimg &new_string_image);
+    IMG_TYPE update_score(const int scored_line_index, const short overlap_a, const short overlap_b, tcimg &old_string_image, tcimg &new_string_image);
 
     /**
      * @brief Score the given line
@@ -208,35 +207,6 @@ private:
      * @return IMG_TYPE Score
      */
     IMG_TYPE score_square(const tcimg &string_image_ref, std::deque<scoord> &line_coords);
-
-    /**
-     * @brief Multiply pixels in a line by a number
-     * @param image Image to darken
-     * @param pin_a Pin A of line
-     * @param pin_b Pin B of line
-     */
-    void darken_line(tcimg &image, const short pin_a, const short pin_b);
-
-    /**
-     * @brief Assign a color to pixels in a line
-     * @param image Image to draw on
-     * @param line_a One end of the line 
-     * @param line_b Other end of the line
-     * @param color Color to assign
-     */
-    static void draw_line(tcimg &image, const scoord line_a, const scoord line_b, const IMG_TYPE color = 0);
-
-    /**
-     * @brief Assign a color to pixels in a line between two pins
-     * @param image Image to modify
-     * @param pin_a Pin A in line
-     * @param pin_b Pin B in line
-     * @param color Color to assign
-     */
-    void draw_line(tcimg &image, const short pin_a, const short pin_b, const IMG_TYPE color = 0);
-
-    static void draw_line_RGB(tcimg &image, const scoord line_a, const scoord line_b, const IMG_TYPE* color);
-
 
     /**
      * @brief Remove a line from the list
@@ -275,8 +245,6 @@ private:
     IMG_TYPE best_score_for(short from_pin, short depth, short &to_pin, vector<short> &visited);
 
     std::string ASCII_line(const short from_pin, const short to_pin, const short resolution);
-
-    CImg<IMG_TYPE> make_accessibility_map();
 
     CImg<IMG_TYPE> make_region_size_map();
 

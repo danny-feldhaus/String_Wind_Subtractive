@@ -1,145 +1,19 @@
 #ifndef LINE_ITERATOR_H
 #define LINE_ITERATOR_H
 #include <CImg/CImg.h>
-#include "coord.hpp"
-#include "line.hpp"
+#include <coord.hpp>
 
 #include <iostream>
 #include <vector>
 #include <math.h>
-#include <line.hpp>
 using std::vector;
 using std::min;
 using std::max;
 using coordinates::coord;
 using coordinates::distance;
 using coordinates::dot;
-using coordinates::line;
+using namespace cimg_library;
 
-//An iterator for a line between two points. 
-//  Uses basic stepped interpolation / floored values for intermediate coordinates
-//  Todo: Add bresenham support / thickness
-//  Todo: Add weighted values based on covered pixel area
-//  Todo: Convert to an iterator sub-class for the line.hpp object
-template <typename IMG_TYPE>
-class line_iterator
-{
-    typedef cimg_library::CImg<IMG_TYPE> tcimg;
-    typedef coord<short> scoord;
-    typedef coord<float> fcoord;
-    public:
-        //Distance from start to end
-        int line_length;
-        //Distance from (cur_x, cur_y) to start
-        int cur_length = 0;
-        //Start and end coordinates of line
-        fcoord start, end;
-
-        /**
-         * @brief Construct a new line iterator\<IMG TYPE\>::line iterator object from two coord objects
-         * 
-         * @param _image Image to iterate over
-         * @param point_a One end of the line  
-         * @param point_b Other end of the line
-         * @param _interpolate
-         * - true: Pixel values are read / written using floating point coordinates and interpolation.
-         * - false: Pixel values are read / written using floored whole-number coordinates.
-         */
-        line_iterator(tcimg &_image, scoord point_a, scoord point_b, bool _interpolate = false, int edge_buffer = 0);
-        
-        /**
-         * @brief Construct a new line iterator object
-         * 
-         * @param _image Image to iterate over
-         * @param ax X coordinate of first point
-         * @param ay Y coordinate of first point
-         * @param bx X coordinate of second point
-         * @param by Y coordinate of second point
-         * @param _interpolate 
-         * - true: Pixel values are read / written using floating point coordinates and interpolation.
-         * - false: Pixel values are read / written using floored whole-number coordinates.
-         */
-        line_iterator(tcimg &_image, short ax, short ay, short bx, short by, bool _interpolate = false, int edge_buffer = 0);
-        
-        /**
-         * @brief Step one pixel width forward
-         * 
-         * @return true Step successful
-         * @return false Step unsuccessful, at end of line
-         */
-        bool step();
-        
-        /**
-         * @brief Step one pixel width backward
-         * @details Similar to step(), except it moves in the opposite direction.
-         * @return true Step successful
-         * @return false Step unsuccessful, at beginning of line
-         */
-        bool step_back();
-
-        /**
-         * @brief Shrink line to the given range of x values
-         * @details Shrinks to the smallest range that contains min_x and max_x that can be reached with step() and step_back()
-         * @param min_x Minimum x value
-         * @param max_x Maximum x value
-         * @return true Shrink successful
-         * @return false Shrink unsuccessful, bounds not in range
-         */
-        bool shrink_around_x(float min_x, float max_x);
-        
-        /**
-         * @brief  Shrink line to the given range of y values
-         * @details Shrinks to the smallest range that contains min_y and max_y that can be reached with step() and step_back()
-         * @param min_y Minimum y
-         * @param max_y Maximum y
-         * @return true Shrink successful
-         * @return false Shrink unsuccessful, bounds not in range
-         */
-        bool shrink_around_y(float min_y, float max_y);
-
-
-
-        /**
-         * @brief Get image value at current position
-         * @details
-         * - _interpolation == true: Value is interpolated using floating point coordinate (see CImg documentation on linear_atXY() for more detail)
-         * - _interpolation ==fsv false: Value is found using whole-number coordinates.
-         * @return IMG_TYPE image value
-         */
-        IMG_TYPE get() const;
-        
-        /**
-         * @brief Set image value at current position
-         * @details
-         * - _interpolation == true: Value is set at interpolated position using floating point coordinate (see CImg documentation on set_linear_atXY() for more detail)
-         * - _interpolation == false: Value is set using whole-number coordinates.
-         * @param val value to set
-         * @return IMG_TYPE equal to val
-         */
-        IMG_TYPE set(IMG_TYPE val);
-
-        /** @brief A new-instance whole-number coord of the current position*/
-        scoord cur_coord();
-
-        scoord left();
-
-        scoord right();
-
-
-        /**
-         * @brief The current pixel's CImg index
-        */
-        int idx();
-
-
-
-
-    private:
-        cimg_library::CImg<IMG_TYPE> &image;
-        bool interpolate;
-        fcoord cur_pos;
-        fcoord step_size;/**x and y step size*/
-};
 
 /**
  * @brief An iterator version of std::set_intersection()
@@ -208,10 +82,10 @@ private:
 
 //Iterates over the region of a line that intersects with another line
 //Todo: transition from coords to line objects.
-template <typename IMG_TYPE>
+template <typename T>
 class line_intersection_iterator
 {
-    typedef cimg_library::CImg<IMG_TYPE> tcimg;
+    typedef CImg<T> tcimg;
     typedef coord<short> scoord;
     typedef coord<float> fcoord;
     private:
@@ -226,7 +100,7 @@ class line_intersection_iterator
     scoord center;
 
     float overlap_width;
-    line_iterator<IMG_TYPE> li;
+    line_iterator<T> li;
     int steps_taken = 0;
 
     //Find the center intersection coordinate of the two lines
@@ -347,7 +221,7 @@ class line_intersection_iterator
         angle(get_angle()),
         center(get_intersection()),
         overlap_width(get_overlap_width(width_buffer)),
-        li(line_iterator<IMG_TYPE>(image, a_start, a_end))
+        li(line_iterator<T>(image, a_start, a_end))
     {
         shrink_iterator();
     }
@@ -381,7 +255,7 @@ class line_intersection_iterator
         return li.step();
     }
 
-    IMG_TYPE get() const
+    T get() const
     {
         return li.get();
     }

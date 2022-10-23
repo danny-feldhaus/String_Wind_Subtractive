@@ -1,4 +1,4 @@
-set(HEADER_LIST "../../include/CImg/CImg.h" "../../include/image_editing.hpp" "../../include/image_analysis.hpp" )
+set(HEADER_LIST "../../include/CImg/CImg.h")
 
 # Prevent compilation in-source
 if( ${CMAKE_BINARY_DIR} STREQUAL ${PROJECT_SOURCE_DIR} )
@@ -96,18 +96,10 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -openmp")
 set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
-add_library(string_art string_art.cpp ${SOURCES})
-add_library(image_analysis image_analysis.cpp ${SOURCES})
-add_library(image_editing image_editing.cpp ${SOURCES})
-
-target_include_directories(string_art PUBLIC ${S_S_SOURCE_DIR}/../include)
-target_include_directories(image_analysis PUBLIC ${S_S_SOURCE_DIR}/../include)
-target_include_directories(image_editing PUBLIC ${S_S_SOURCE_DIR}/../include)
+add_library(line line.cpp ${SOURCES})
+target_include_directories(line PUBLIC ${S_S_SOURCE_DIR}/../include ${S_S_SOURCE_DIR}/../include/CImg)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(string_art PUBLIC OpenMP::OpenMP_CXX)
+    target_link_libraries(line PUBLIC OpenMP::OpenMP_CXX)
 endif()
-target_link_libraries(image_editing PUBLIC line)
-target_link_libraries(string_art PUBLIC image_analysis image_editing display_manager ascii_info line)
-
